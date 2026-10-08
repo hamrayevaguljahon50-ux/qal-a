@@ -1,0 +1,1821 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#8dd3e6">
+  <title>Qal'alar jangi</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { font-family: "Trebuchet MS", system-ui, sans-serif; color: #fff; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; min-height: 100svh; overflow: hidden; background: #92d8e8; }
+    #game { display: none; }
+    #scene3d { position: fixed; inset: 0; z-index: 0; display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; cursor: grab; }
+    #scene3d.dragging { cursor: grabbing; }
+    .camera-hint { position: fixed; z-index: 2; right: 50%; bottom: 98px; transform: translateX(50%); padding: 7px 11px; border: 1px solid #ffffff45; border-radius: 10px; background: #182a38ce; color: #fff; font-size: 11px; pointer-events: none; }
+    .topbar {
+      position: fixed; z-index: 2; top: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 18px; padding: 10px 18px;
+      border: 1px solid #ffffff48; border-radius: 16px; background: #182a38e8;
+      box-shadow: 0 8px 26px #19374c30; white-space: nowrap;
+    }
+    .brand { font-size: 17px; font-weight: 1000; letter-spacing: .6px; }
+    .brand span { color: #ffd164; }
+    .gold { padding: 7px 11px; border-radius: 10px; background: #ffffff12; color: #ffe08b; font-size: 14px; font-weight: 800; }
+    .opponent-gold { display: none; padding: 7px 11px; border-radius: 10px; background: #ffffff12; color: #ffaaaa; font-size: 14px; font-weight: 800; }
+    .opponent-diamonds { display: none; padding: 6px 8px; border-radius: 9px; background: #ffffff12; font-size: 12px; font-weight: 800; }
+    .loot { display: flex; gap: 6px; }
+    .loot span { padding: 6px 8px; border-radius: 9px; background: #ffffff12; font-size: 12px; font-weight: 800; }
+    .round { color: #d6e4eb; font-size: 12px; }
+    .menu-button {
+      padding: 7px 10px; border: 1px solid #ffffff32; border-radius: 9px;
+      background: #ffffff12; color: white; font: inherit; font-size: 11px; cursor: pointer; touch-action: manipulation;
+    }
+    .health-panel {
+      position: fixed; z-index: 2; top: 76px; left: 18px; width: 205px;
+      padding: 11px 13px; border: 1px solid #ffffff40; border-radius: 13px;
+      background: #182a38dc; font-size: 12px;
+    }
+    .health-row { display: flex; justify-content: space-between; gap: 5px; margin-bottom: 6px; }
+    .health-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .health-row b { flex: 0 0 auto; }
+    .health-row + .bar { margin-bottom: 9px; }
+    .bar { height: 8px; overflow: hidden; border-radius: 99px; background: #ffffff2d; }
+    .fill { height: 100%; border-radius: inherit; transition: width .2s; }
+    .castle-action-row { display: flex; gap: 5px; margin: 0 0 7px; }
+    .castle-action-row[hidden] { display: none; }
+    .castle-action {
+      flex: 1; min-width: 0; min-height: 27px; padding: 4px 3px; border: 1px solid #ffffff30;
+      border-radius: 7px; background: #ffffff12; color: #ffe08b; font: inherit;
+      font-size: 9px; font-weight: 800; cursor: pointer; touch-action: manipulation;
+    }
+    .castle-action:disabled { cursor: not-allowed; opacity: .45; }
+    #player-health { background: linear-gradient(90deg, #60d578, #a5ed72); }
+    #enemy-health { background: linear-gradient(90deg, #ff9b55, #f14f54); }
+    .help {
+      position: fixed; z-index: 2; top: 76px; right: 18px; max-width: 230px;
+      padding: 11px 13px; border: 1px solid #ffffff40; border-radius: 13px;
+      background: #182a38dc; color: #dce7eb; font-size: 11px; line-height: 1.55;
+    }
+    .help strong { color: white; }
+    .bottom {
+      position: fixed; z-index: 2; bottom: 18px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 9px; max-width: calc(100vw - 20px);
+      padding: 9px; border: 1px solid #ffffff50; border-radius: 17px;
+      background: #182a38ec; box-shadow: 0 8px 26px #19374c30;
+    }
+    .unit {
+      min-width: 115px; min-height: 65px; position: relative; display: flex; align-items: center;
+      gap: 9px; padding: 8px 11px; border: 1px solid #ffffff30; border-radius: 12px;
+      background: #ffffff0d; color: white; cursor: pointer; text-align: left;
+      transition: transform .12s, background .12s, border-color .12s;
+    }
+    .unit:hover:not(:disabled) { transform: translateY(-3px); background: #ffffff1d; border-color: #ffd164; }
+    .unit:disabled { cursor: not-allowed; opacity: .48; }
+    .unit .emoji { font-size: 28px; filter: drop-shadow(1px 2px 1px #0007); }
+    .unit .name { display: block; font-size: 11px; font-weight: 800; }
+    .unit .cost { display: block; margin-top: 4px; color: #ffd164; font-size: 10px; }
+    .key {
+      position: absolute; top: 4px; right: 5px; color: #ffffff70; font-size: 9px;
+    }
+    .duel-controls {
+      position: fixed; z-index: 2; right: 10px; bottom: 14px; left: 10px;
+      display: none; justify-content: space-between; pointer-events: none;
+    }
+    .duel-team {
+      display: flex; flex-direction: column; gap: 6px; padding: 7px;
+      border: 1px solid #ffffff50; border-radius: 14px; background: #182a38ec;
+      box-shadow: 0 8px 26px #19374c30; pointer-events: auto;
+    }
+    .duel-team h2 { margin: 0 3px 1px; color: #dce7eb; font-size: 10px; }
+    .duel-team.opponent h2 { color: #ffaaaa; text-align: right; }
+    .duel-team .unit { min-width: 126px; min-height: 48px; padding: 5px 8px; }
+    .duel-team .unit .emoji { font-size: 21px; }
+    .duel-team .unit .name { font-size: 10px; }
+    .duel-team .unit .cost { font-size: 9px; }
+    #main-menu {
+      position: fixed; inset: 0; z-index: 5; display: grid; place-items: center;
+      overflow-y: auto; padding: max(12px, env(safe-area-inset-top)) 18px max(12px, env(safe-area-inset-bottom));
+      background: #102133ba; backdrop-filter: blur(5px);
+    }
+    #main-menu.hidden { display: none; }
+    .menu-card {
+      width: min(92vw, 520px); max-height: calc(100dvh - 24px); overflow-y: auto;
+      padding: clamp(23px, 5vw, 42px);
+      border: 1px solid #ffffff72; border-radius: 24px; background: #152638f2;
+      box-shadow: 0 24px 100px #08152399; text-align: center;
+    }
+    .menu-card h1 { margin: 0; color: #ffd164; font-size: clamp(29px, 7vw, 44px); }
+    .menu-card .subtitle { margin: 8px 0 22px; color: #d5e3e9; }
+    .menu-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .menu-option {
+      min-height: 108px; padding: 14px; border: 1px solid #ffffff35; border-radius: 15px;
+      background: #ffffff0d; color: white; font: inherit; cursor: pointer; touch-action: manipulation;
+    }
+    .menu-option:hover { border-color: #ffd164; background: #ffffff18; }
+    .menu-option strong { display: block; margin-bottom: 7px; color: #ffd164; font-size: 16px; }
+    .menu-option span { display: block; color: #d5e3e9; font-size: 11px; line-height: 1.45; }
+    .menu-rules { margin: 18px 0 0; color: #b9cbd4; font-size: 11px; line-height: 1.6; }
+    .online-panel { margin-top: 14px; padding: 14px; border: 1px solid #ffffff35; border-radius: 15px; background: #ffffff0a; }
+    .online-panel[hidden] { display: none; }
+    .online-panel h2 { margin: 0 0 9px; color: #ffd164; font-size: 16px; }
+    .name-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 0; color: #d5e3e9; font-size: 11px; }
+    .name-row input {
+      width: min(190px, 58vw); min-height: 38px; padding: 7px 10px; border: 1px solid #ffffff42;
+      border-radius: 9px; background: #0f1d2b; color: white; font: inherit;
+    }
+    .online-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+    .online-actions input {
+      width: 132px; min-height: 44px; padding: 8px; border: 1px solid #ffffff42;
+      border-radius: 9px; background: #0f1d2b; color: white; font: inherit; text-align: center;
+    }
+    .online-action {
+      min-height: 44px; padding: 8px 12px; border: 0; border-radius: 9px;
+      background: #ffd164; color: #342817; font: inherit; font-size: 12px;
+      font-weight: 900; cursor: pointer; touch-action: manipulation;
+    }
+    .online-action.secondary { border: 1px solid #ffffff35; background: #ffffff12; color: white; }
+    .online-action:disabled { cursor: wait; opacity: .6; }
+    #room-status { min-height: 19px; margin: 9px 0 0; color: #d5e3e9; font-size: 12px; line-height: 1.5; }
+    #room-code-display { color: #ffe08b; font-size: 24px; font-weight: 1000; letter-spacing: 4px; }
+    .online-status { display: none; color: #ffe08b; font-size: 11px; }
+    .room-chat { display: none; width: 100%; padding: 9px; border: 1px solid #ffffff30; border-radius: 12px; background: #0f1d2b99; text-align: left; }
+    .room-chat.visible { display: block; }
+    .room-chat.floating {
+      position: fixed; right: 10px; bottom: 145px; z-index: 4;
+      width: min(275px, 75vw); max-height: 205px; box-shadow: 0 8px 26px #19374c50;
+    }
+    .room-chat.collapsed { display: none; }
+    .chat-toggle { position: fixed; top: 16px; right: 18px; z-index: 6; }
+    .chat-toggle[hidden] { display: none; }
+    .chat-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; color: #ffe08b; font-size: 11px; font-weight: 900; }
+    .chat-messages { display: flex; flex-direction: column; gap: 4px; max-height: 104px; overflow-y: auto; padding-right: 3px; }
+    .chat-message { overflow-wrap: anywhere; color: #dce7eb; font-size: 10px; line-height: 1.4; }
+    .chat-message strong { color: #ffe08b; }
+    .chat-form { display: flex; gap: 5px; margin-top: 7px; }
+    .chat-form input {
+      width: 100%; min-width: 0; min-height: 34px; padding: 6px 8px; border: 1px solid #ffffff36;
+      border-radius: 8px; outline: none; background: #091522; color: white; font: inherit; font-size: 11px;
+    }
+    .chat-form button {
+      flex: 0 0 auto; padding: 6px 9px; border: 0; border-radius: 8px;
+      background: #ffd164; color: #342817; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer;
+    }
+    .chat-error { min-height: 13px; margin: 4px 0 0; color: #ffaaaa; font-size: 9px; }
+    #message {
+      position: fixed; z-index: 4; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: min(90vw, 400px); padding: 28px; border: 1px solid #ffffff65; border-radius: 22px;
+      background: #152638f2; box-shadow: 0 20px 80px #08152388; text-align: center;
+    }
+    #message.hidden { display: none; }
+    #message h1 { margin: 0 0 8px; color: #ffd164; font-size: 30px; }
+    #message p { margin: 0 0 19px; color: #d5e3e9; line-height: 1.5; }
+    #restart {
+      padding: 11px 18px; border: 0; border-radius: 11px; background: #ffd164;
+      color: #342817; font: inherit; font-weight: 900; cursor: pointer;
+    }
+    #shop-panel {
+      position: fixed; inset: 0; z-index: 8; display: grid; place-items: center; overflow-y: auto;
+      padding: 16px; background: #102133bb; backdrop-filter: blur(5px);
+    }
+    #shop-panel[hidden] { display: none; }
+    .shop-card {
+      width: min(94vw, 900px); min-height: min(420px, calc(100dvh - 32px));
+      max-height: calc(100dvh - 32px); overflow-y: auto;
+      padding: clamp(18px, 4vw, 30px); border: 1px solid #ffffff65; border-radius: 20px;
+      background: #152638f5; box-shadow: 0 24px 100px #081523aa; text-align: center;
+    }
+    .shop-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .shop-heading h2 { margin: 0; color: #ffd164; }
+    .shop-heading button { min-height: 38px; padding: 6px 12px; border: 1px solid #ffffff35; border-radius: 9px; background: #ffffff12; color: white; font: inherit; cursor: pointer; }
+    .shop-balance { margin: 8px 0 14px; color: #d7e3e8; }
+    .shop-side { min-height: 38px; margin: 0 0 12px; padding: 6px 10px; border: 1px solid #ffffff35; border-radius: 9px; background: #0f1d2b; color: white; font: inherit; }
+    .shop-products { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .shop-product {
+      min-height: 175px; padding: 18px 12px; border: 1px solid #ffffff32; border-radius: 13px;
+      background: #ffffff0d; color: white; font: inherit; cursor: pointer; touch-action: manipulation;
+    }
+    .shop-product:hover:not(:disabled) { border-color: #ffd164; background: #ffffff17; }
+    .shop-product:disabled { cursor: not-allowed; opacity: .5; }
+    .shop-product strong { display: block; margin-bottom: 8px; color: #ffe08b; font-size: 14px; }
+    .shop-product span { display: block; color: #d5e3e9; font-size: 11px; line-height: 1.5; }
+    #shop-status { min-height: 20px; margin: 10px 0 0; color: #ffe08b; font-size: 12px; }
+    @media (max-width: 650px) {
+      .topbar { top: 8px; right: 7px; left: 7px; width: auto; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 7px; transform: none; }
+      .brand { font-size: 11px; }
+      .gold { padding: 6px 8px; font-size: 12px; }
+      .opponent-gold { padding: 5px; font-size: 10px; }
+      .opponent-diamonds { padding: 5px; font-size: 9px; }
+      .loot { gap: 3px; }
+      .loot span { padding: 5px; font-size: 10px; }
+      .round { display: none; }
+      .health-panel { top: 80px; left: 7px; width: min(52vw, 190px); padding: 7px; font-size: 9px; }
+      .help { top: 80px; right: 7px; max-width: 44vw; padding: 7px; font-size: 9px; }
+      .bottom { bottom: 9px; gap: 4px; padding: 5px; }
+      .bottom { right: 5px; left: 5px; width: auto; transform: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .unit { min-width: 0; min-height: 58px; flex-direction: column; justify-content: center; gap: 0; padding: 3px 1px; }
+      .unit .emoji { font-size: 19px; }
+      .unit .name { font-size: 9px; }
+      .unit .cost { font-size: 9px; }
+      .menu-button { padding: 6px; font-size: 9px; }
+      .chat-toggle { top: 8px; right: 7px; }
+      .chat-toggle { top: 62px; }
+      .health-panel, .help { top: 108px; }
+      .castle-action-row { gap: 3px; margin-bottom: 5px; }
+      .castle-action { min-height: 30px; padding: 3px 1px; font-size: 8px; }
+      .duel-controls { bottom: 8px; right: 5px; left: 5px; }
+      .duel-team { display: grid; grid-template-columns: repeat(2, minmax(62px, 1fr)); gap: 4px; padding: 5px; }
+      .duel-team h2 { grid-column: 1 / -1; }
+      .duel-team .unit { min-width: 0; min-height: 44px; flex-direction: row; gap: 3px; padding: 4px; }
+      .duel-team .unit .emoji { font-size: 17px; }
+      .duel-team .unit .name { font-size: 8px; }
+      .duel-team .unit .cost { font-size: 8px; }
+      .duel-team .key { display: none; }
+      .duel-team h2 { font-size: 9px; }
+      .menu-options { grid-template-columns: 1fr; }
+      .menu-option { min-height: 78px; }
+      .online-panel { padding: 10px; }
+      .online-actions input { width: 110px; }
+      .room-chat.floating { right: 5px; bottom: 150px; width: min(220px, 62vw); max-height: 165px; }
+      .chat-messages { max-height: 68px; }
+      .camera-hint { bottom: 82px; padding: 5px 8px; font-size: 9px; }
+      .menu-card { width: min(96vw, 520px); max-height: calc(100dvh - 16px); padding: 20px; }
+      .menu-card .subtitle { margin-bottom: 14px; }
+      .menu-option { min-height: 70px; padding: 10px; }
+      .menu-rules { margin-top: 12px; }
+      .shop-products { grid-template-columns: 1fr; }
+      .shop-card { min-height: 0; width: min(96vw, 620px); }
+      .shop-product { min-height: 88px; padding: 10px; }
+    }
+    @media (max-width: 1000px) and (min-width: 651px) {
+      .bottom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .unit { min-width: 0; min-height: 58px; flex-direction: column; justify-content: center; gap: 0; padding: 4px; }
+    }
+    @media (max-height: 520px) and (orientation: landscape) {
+      #main-menu { place-items: start center; padding-top: 8px; padding-bottom: 8px; }
+      .menu-card { max-height: calc(100dvh - 16px); padding: 16px 22px; }
+      .menu-card .subtitle { margin: 4px 0 10px; }
+      .menu-option { min-height: 62px; padding: 8px; }
+      .menu-option strong { margin-bottom: 3px; font-size: 13px; }
+      .menu-rules { margin-top: 9px; font-size: 10px; }
+      .topbar { top: 5px; gap: 6px; padding: 5px 8px; }
+      .health-panel { top: 57px; width: 190px; padding: 7px; font-size: 9px; }
+      .help { top: 57px; padding: 7px; font-size: 9px; }
+      .help { max-width: 190px; }
+      .bottom { bottom: 5px; gap: 4px; padding: 5px; }
+      .unit { min-width: 86px; min-height: 48px; gap: 5px; padding: 5px 7px; }
+      .unit .emoji { font-size: 21px; }
+      .duel-controls { bottom: 4px; }
+      .duel-team { display: grid; grid-template-columns: repeat(2, minmax(72px, 1fr)); gap: 3px; padding: 4px; }
+      .duel-team h2 { grid-column: 1 / -1; }
+      .duel-team .unit { min-width: 0; min-height: 39px; }
+      .chat-toggle { top: 5px; right: 5px; }
+      .room-chat.floating { bottom: 105px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Qal'alar jangi. Askarlar chiqarib dushman qal'asini zabt eting."></canvas>
+  <div class="camera-hint">3D kamerani sichqoncha yoki barmoq bilan tortib aylantiring · g‘ildirak bilan yaqinlashtiring</div>
+  <header class="topbar">
+    <div class="brand">QAL'ALAR <span>JANGI</span></div>
+    <div class="gold">🪙 <span id="gold">2000</span></div>
+    <div class="opponent-gold" id="opponent-gold">🪙 <span id="enemy-gold">2000</span></div>
+    <div class="loot" aria-label="Mukofotlar"><span>⛓️ <b id="chain">0</b></span><span>💎 <b id="diamonds">0</b></span></div>
+    <div class="opponent-diamonds" id="opponent-diamonds">💎 <span id="enemy-diamonds">0</span></div>
+    <div class="round" id="round">Jang boshlandi!</div>
+    <div class="online-status" id="online-status"></div>
+    <button class="menu-button" id="shop-button" type="button">💎 Do‘kon</button>
+    <button class="menu-button" id="home-button">Bosh menyu</button>
+  </header>
+  <section id="shop-panel" hidden aria-label="Olmos do‘koni">
+    <div class="shop-card">
+      <div class="shop-heading"><h2>💎 Olmos do‘koni</h2><button id="close-shop" type="button">Yopish</button></div>
+      <p class="shop-balance">Olmos: <b id="shop-diamonds">0</b></p>
+      <label class="shop-side-row" id="shop-side-row" hidden>O‘yinchi:
+        <select class="shop-side" id="shop-side">
+          <option value="0">1-o‘yinchi</option>
+          <option value="1">2-o‘yinchi</option>
+        </select>
+      </label>
+      <div class="shop-products">
+        <button class="shop-product" data-shop-product="gold"><strong>🪙 1000 tanga</strong><span>10 olmosga tangangizga 1000 qo‘shiladi.</span><span>💎 10</span></button>
+        <button class="shop-product" data-shop-product="heal"><strong>❤️ Qal’ani davolash</strong><span>Qal’aga 500 jon qo‘shadi, maksimal jondan oshmaydi.</span><span>💎 25</span></button>
+        <button class="shop-product" data-shop-product="boost"><strong>⚡ Ikki karra zarar</strong><span>Askarlaringiz shu jangda 2 baravar kuchli uradi.</span><span>💎 50</span></button>
+      </div>
+      <p id="shop-status" role="status"></p>
+    </div>
+  </section>
+  <button class="menu-button chat-toggle" id="chat-toggle" type="button" hidden>💬 Chat</button>
+  <section class="health-panel" aria-label="Qal'alar salomatligi">
+    <div class="health-row"><span id="player-castle-label">🛡️ Sening qal'ang</span><b id="player-hp-text">1000</b></div>
+    <div class="bar"><div id="player-health" class="fill" style="width:100%"></div></div>
+    <div class="castle-action-row" data-castle-actions="player">
+      <button class="castle-action" data-castle-action="upgrade" data-side="player" title="Qal'ani 250 maksimal jonga yangilash">⬆️ +250 · 100🪙</button>
+      <button class="castle-action" data-castle-action="heal" data-side="player" title="Qal'aga 200 jon qo‘shish">❤️ +200 · 40🪙</button>
+    </div>
+    <div class="health-row"><span id="enemy-castle-label">🏰 Dushman qal'asi</span><b id="enemy-hp-text">1000</b></div>
+    <div class="bar"><div id="enemy-health" class="fill" style="width:100%"></div></div>
+    <div class="castle-action-row" data-castle-actions="enemy" hidden>
+      <button class="castle-action" data-castle-action="upgrade" data-side="enemy" title="Qal'ani 250 maksimal jonga yangilash">⬆️ +250 · 100🪙</button>
+      <button class="castle-action" data-castle-action="heal" data-side="enemy" title="Qal'aga 200 jon qo‘shish">❤️ +200 · 40🪙</button>
+    </div>
+  </section>
+  <aside class="help" id="help"><strong>Vazifa:</strong> askar chiqarib dushman qal'asini yeng!<br><strong>Mukofot:</strong> har bir yengilgan dushman uchun tanga, g'alabada +10 tanga, +10 zanjir va +10 olmos. Klaviaturada 1–9 bilan askar chiqarish mumkin.</aside>
+  <nav class="bottom" id="solo-controls" aria-label="Askarlar">
+    <button class="unit" data-unit="swordsman" data-side="player"><span class="key">1</span><span class="emoji">⚔️</span><span><span class="name">Qilichboz</span><span class="cost">🪙 25</span></span></button>
+    <button class="unit" data-unit="archer" data-side="player"><span class="key">2</span><span class="emoji">🏹</span><span><span class="name">Kamonchi</span><span class="cost">🪙 40</span></span></button>
+    <button class="unit" data-unit="knight" data-side="player"><span class="key">3</span><span class="emoji">🛡️</span><span><span class="name">Ritsar</span><span class="cost">🪙 65</span></span></button>
+    <button class="unit" data-unit="tower" data-side="player"><span class="key">4</span><span class="emoji">🏰</span><span><span class="name">Minora</span><span class="cost">🪙 50</span></span></button>
+    <button class="unit" data-unit="mage" data-side="player"><span class="key">5</span><span class="emoji">🧙</span><span><span class="name">Sehrgar</span><span class="cost">🪙 70</span></span></button>
+    <button class="unit" data-unit="pistol" data-side="player"><span class="key">6</span><span class="emoji">🔫</span><span><span class="name">To‘pponchachi</span><span class="cost">🪙 55</span></span></button>
+    <button class="unit" data-unit="cannon" data-side="player"><span class="key">7</span><span class="emoji">💣</span><span><span class="name">Zambarakchi</span><span class="cost">🪙 100</span></span></button>
+    <button class="unit" data-unit="spearman" data-side="player"><span class="key">8</span><span class="emoji">🔱</span><span><span class="name">Nayzachi</span><span class="cost">🪙 40</span></span></button>
+    <button class="unit" data-unit="laser" data-side="player"><span class="key">9</span><span class="emoji">🔦</span><span><span class="name">Lazerchi</span><span class="cost">🪙 150</span></span></button>
+  </nav>
+  <section class="duel-controls" id="duel-controls" aria-label="Ikki o‘yinchi askar boshqaruvi">
+    <nav class="duel-team" aria-label="1-o‘yinchi">
+      <h2>1-O‘YINCHI · 1–5, Q W E R</h2>
+      <button class="unit" data-unit="swordsman" data-side="player"><span class="key">1</span><span class="emoji">⚔️</span><span><span class="name">Qilichboz</span><span class="cost">🪙 25</span></span></button>
+      <button class="unit" data-unit="archer" data-side="player"><span class="key">2</span><span class="emoji">🏹</span><span><span class="name">Kamonchi</span><span class="cost">🪙 40</span></span></button>
+      <button class="unit" data-unit="knight" data-side="player"><span class="key">3</span><span class="emoji">🛡️</span><span><span class="name">Ritsar</span><span class="cost">🪙 65</span></span></button>
+      <button class="unit" data-unit="tower" data-side="player"><span class="key">4</span><span class="emoji">🏰</span><span><span class="name">Minora</span><span class="cost">🪙 50</span></span></button>
+      <button class="unit" data-unit="mage" data-side="player"><span class="key">5</span><span class="emoji">🧙</span><span><span class="name">Sehrgar</span><span class="cost">🪙 70</span></span></button>
+      <button class="unit" data-unit="pistol" data-side="player"><span class="key">Q</span><span class="emoji">🔫</span><span><span class="name">To‘pponchachi</span><span class="cost">🪙 55</span></span></button>
+      <button class="unit" data-unit="cannon" data-side="player"><span class="key">W</span><span class="emoji">💣</span><span><span class="name">Zambarakchi</span><span class="cost">🪙 100</span></span></button>
+      <button class="unit" data-unit="spearman" data-side="player"><span class="key">E</span><span class="emoji">🔱</span><span><span class="name">Nayzachi</span><span class="cost">🪙 40</span></span></button>
+      <button class="unit" data-unit="laser" data-side="player"><span class="key">R</span><span class="emoji">🔦</span><span><span class="name">Lazerchi</span><span class="cost">🪙 150</span></span></button>
+    </nav>
+    <nav class="duel-team opponent" aria-label="2-o‘yinchi">
+      <h2>2-O‘YINCHI · 6–0, I O P L</h2>
+      <button class="unit" data-unit="swordsman" data-side="enemy"><span class="key">7</span><span class="emoji">⚔️</span><span><span class="name">Qilichboz</span><span class="cost">🪙 25</span></span></button>
+      <button class="unit" data-unit="archer" data-side="enemy"><span class="key">8</span><span class="emoji">🏹</span><span><span class="name">Kamonchi</span><span class="cost">🪙 40</span></span></button>
+      <button class="unit" data-unit="knight" data-side="enemy"><span class="key">9</span><span class="emoji">🛡️</span><span><span class="name">Ritsar</span><span class="cost">🪙 65</span></span></button>
+      <button class="unit" data-unit="tower" data-side="enemy"><span class="key">0</span><span class="emoji">🏰</span><span><span class="name">Minora</span><span class="cost">🪙 50</span></span></button>
+      <button class="unit" data-unit="mage" data-side="enemy"><span class="key">6</span><span class="emoji">🧙</span><span><span class="name">Sehrgar</span><span class="cost">🪙 70</span></span></button>
+      <button class="unit" data-unit="pistol" data-side="enemy"><span class="key">I</span><span class="emoji">🔫</span><span><span class="name">To‘pponchachi</span><span class="cost">🪙 55</span></span></button>
+      <button class="unit" data-unit="cannon" data-side="enemy"><span class="key">O</span><span class="emoji">💣</span><span><span class="name">Zambarakchi</span><span class="cost">🪙 100</span></span></button>
+      <button class="unit" data-unit="spearman" data-side="enemy"><span class="key">P</span><span class="emoji">🔱</span><span><span class="name">Nayzachi</span><span class="cost">🪙 40</span></span></button>
+      <button class="unit" data-unit="laser" data-side="enemy"><span class="key">L</span><span class="emoji">🔦</span><span><span class="name">Lazerchi</span><span class="cost">🪙 150</span></span></button>
+    </nav>
+  </section>
+  <section id="main-menu">
+    <div class="menu-card">
+      <h1>QAL’ALAR JANGI</h1>
+      <p class="subtitle">Qal’angni himoya qil, raqib qal’asini zabt et!</p>
+      <div class="menu-options">
+        <button class="menu-option" data-mode="solo"><strong>🤖 Yakka o‘yin</strong><span>Kompyuterga qarshi jang. Askarlarni 1–9 bilan chiqar.</span></button>
+        <button class="menu-option" data-mode="local"><strong>⚔️ 2 o‘yinchi</strong><span>Bitta qurilmada: 1-o‘yinchi 1–5, QWER; 2-o‘yinchi 6–0, IOPL.</span></button>
+        <button class="menu-option" id="show-online"><strong>🌐 Onlayn jang</strong><span>Ikki alohida qurilma va xona kodi orqali.</span></button>
+      </div>
+      <div class="online-panel" id="online-panel" hidden>
+        <h2>Internet orqali o‘ynash</h2>
+        <label class="name-row" for="player-name">Ismingiz
+          <input id="player-name" maxlength="20" autocomplete="nickname" placeholder="Masalan, Ali" aria-label="O‘yinchi ismi">
+        </label>
+        <div class="online-actions">
+          <input id="create-code" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Avto yoki 6 raqam" aria-label="Ixtiyoriy xona kodi">
+          <button class="online-action" id="create-room">Xona yaratish</button>
+          <input id="join-code" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="Qo‘shilish kodi" aria-label="Xona kodi">
+          <button class="online-action secondary" id="join-room">Qo‘shilish</button>
+        </div>
+        <p id="room-status" role="status"></p>
+        <div id="room-code-display" hidden></div>
+        <button class="online-action secondary" id="copy-room" hidden>Taklif havolasini nusxalash</button>
+        <section class="room-chat" id="room-chat" aria-label="Xona chati">
+          <div class="chat-heading"><span>💬 Xona chati</span><span id="chat-count">0/100</span></div>
+          <div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div>
+          <form class="chat-form" id="chat-form">
+            <input id="chat-input" maxlength="200" autocomplete="off" placeholder="Xabar yozing…" aria-label="Chat xabari">
+            <button type="submit">Yuborish</button>
+          </form>
+          <p class="chat-error" id="chat-error" role="status"></p>
+        </section>
+      </div>
+      <p class="menu-rules">Askarlar va qal’a minoralari tanga turadi. Lazerchi (150) uzoqdan lazer otadi; yengilganda 10 000 tanga va 100 olmos beradi. Sehrgar (70) uzoqdan sehrli zarba beradi; to‘pponchachi (55) tez o‘q uzadi; zambarakchi (100) portlovchi, ko‘p askarga tegadigan o‘q otadi; nayzachi (40) tez yuradi. Qal’ani dastlab 3 marta yangilang; har 3 ta yangilashdan keyin yana 1000 ta imkoniyat ochiladi. Har yangilash 100 tanga: qal’aning maksimal joni +250 bo‘ladi, qal’a 5% balandlashib 8% kengayadi (eng ko‘pi 1.75 baravar baland va 2.2 baravar keng). 40 tanga evaziga 200 jon tiklang.</p>
+    </div>
+  </section>
+  <section id="message" class="hidden">
+    <h1 id="result-title">G'alaba!</h1>
+    <p id="result-text"></p>
+    <button id="restart">Qayta o'ynash</button>
+  </section>
+  <script>
+    (() => {
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const sceneCanvas = document.createElement("canvas");
+      sceneCanvas.id = "scene3d";
+      sceneCanvas.setAttribute("aria-label", "Buriladigan uch o‘lchamli jang maydoni. Kamerani sichqoncha yoki barmoq bilan burang.");
+      document.body.insertBefore(sceneCanvas, canvas);
+      const gl = sceneCanvas.getContext("webgl", { antialias: true, alpha: false });
+      const goldLabel = document.getElementById("gold");
+      const enemyGoldLabel = document.getElementById("enemy-gold");
+      const opponentGoldBox = document.getElementById("opponent-gold");
+      const mainMenu = document.getElementById("main-menu");
+      const onlinePanel = document.getElementById("online-panel");
+      const roomStatus = document.getElementById("room-status");
+      const roomCodeDisplay = document.getElementById("room-code-display");
+      const copyRoomButton = document.getElementById("copy-room");
+      const roomChat = document.getElementById("room-chat");
+      const chatToggle = document.getElementById("chat-toggle");
+      const chatMessages = document.getElementById("chat-messages");
+      const chatCount = document.getElementById("chat-count");
+      const chatError = document.getElementById("chat-error");
+      const onlineStatus = document.getElementById("online-status");
+      const chainLabel = document.getElementById("chain");
+      const diamondsLabel = document.getElementById("diamonds");
+      const enemyDiamondsLabel = document.getElementById("enemy-diamonds");
+      const opponentDiamondsBox = document.getElementById("opponent-diamonds");
+      const shopPanel = document.getElementById("shop-panel");
+      const shopDiamondsLabel = document.getElementById("shop-diamonds");
+      const shopStatus = document.getElementById("shop-status");
+      const shopSide = document.getElementById("shop-side");
+      const shopSideRow = document.getElementById("shop-side-row");
+      const shopProductButtons = [...document.querySelectorAll(".shop-product")];
+      const roundLabel = document.getElementById("round");
+      const message = document.getElementById("message");
+      const playerHpText = document.getElementById("player-hp-text");
+      const enemyHpText = document.getElementById("enemy-hp-text");
+      const playerCastleLabel = document.getElementById("player-castle-label");
+      const enemyCastleLabel = document.getElementById("enemy-castle-label");
+      const playerHealth = document.getElementById("player-health");
+      const enemyHealth = document.getElementById("enemy-health");
+      const unitButtons = [...document.querySelectorAll(".unit")];
+      const castleActionButtons = [...document.querySelectorAll(".castle-action")];
+      const castleUpgrade = { cost: 100, hp: 250, initialLimit: 3, unlockPerThree: 1000 };
+      const castleHeal = { cost: 40, hp: 200 };
+      const startingGold = 2000;
+      const castleHeightScale = sideIndex => 1 + Math.min(state.castleUpgrades[sideIndex] * .05, .75);
+      const castleWidthScale = sideIndex => 1.6 * (1 + Math.min(state.castleUpgrades[sideIndex] * .08, 1.2));
+      const worldXScale = 6;
+      const mapWorldX = x => {
+        const leftCastle = 500 + (90 - 500) * worldXScale;
+        const rightCastle = 500 + (910 - 500) * worldXScale;
+        const innerLeft = 200;
+        const innerRight = 800;
+        const innerWorldLeft = leftCastle + innerLeft - 90;
+        const innerWorldRight = rightCastle - (910 - innerRight);
+        if (x < innerLeft) return leftCastle + x - 90;
+        if (x > innerRight) return rightCastle + x - 910;
+        return innerWorldLeft + (x - innerLeft) *
+          (innerWorldRight - innerWorldLeft) / (innerRight - innerLeft);
+      };
+      const castleUpgradeProgress = sideIndex => {
+        const completed = state.castleUpgrades[sideIndex];
+        const cycleProgress = completed % castleUpgrade.initialLimit;
+        const unlockedByCycles = Math.floor(completed / castleUpgrade.initialLimit) * castleUpgrade.unlockPerThree;
+        return `${cycleProgress}/${castleUpgrade.initialLimit}/${unlockedByCycles}/${castleUpgrade.unlockPerThree}`;
+      };
+      const soloControls = document.getElementById("solo-controls");
+      const duelControls = document.getElementById("duel-controls");
+      const settings = {
+        swordsman: { cost: 25, hp: 100, damage: 20, range: 28, speed: 33, interval: .8, color: "#3877c7", size: 15 },
+        archer: { cost: 40, hp: 65, damage: 17, range: 165, speed: 25, interval: 1.15, color: "#36a968", size: 14 },
+        knight: { cost: 65, hp: 190, damage: 38, range: 34, speed: 21, interval: 1.05, color: "#d69337", size: 19 },
+        mage: { cost: 70, hp: 80, damage: 30, range: 155, speed: 22, interval: 1.2, color: "#8b62c5", size: 16 },
+        pistol: { cost: 55, hp: 75, damage: 24, range: 125, speed: 27, interval: .9, color: "#8d6349", size: 15 },
+        cannon: { cost: 100, hp: 145, damage: 52, range: 190, speed: 12, interval: 2.2, splashRadius: 55, color: "#65717a", size: 21 },
+        spearman: { cost: 40, hp: 90, damage: 18, range: 44, speed: 39, interval: .7, color: "#4a9b78", size: 14 },
+        laser: { cost: 150, hp: 90, damage: 45, range: 230, speed: 20, interval: .9, color: "#37d5d0", size: 16 }
+      };
+      const unitKillRewards = { swordsman: 20, archer: 20, knight: 20, mage: 100, pistol: 120, cannon: 500, spearman: 400, laser: 10000 };
+      const tower = { cost: 50, damage: 22, range: 220, interval: 1.4, limit: 3 };
+      const state = {
+        gold: startingGold, enemyGold: startingGold, chain: 0, diamonds: loadSavedDiamonds(), damageBoosts: [1, 1],
+        playerHp: 1000, enemyHp: 1000,
+        castleMaxHp: [1000, 1000], castleUpgrades: [0, 0], castleUpgradeLimits: [3, 3],
+        units: [], particles: [],
+        towers: [0, 0], towerCooldowns: [[], []],
+        elapsed: 0, spawnTimer: 4, last: 0, running: false, mode: null, wave: 1, frame: 0
+      };
+      let onlineRoom = null;
+      let onlineRequestPending = false;
+      let onlinePollTimer = 0;
+      let polling = false;
+      let lastOnlineSnapshot = null;
+      let lastChatId = 0;
+      let renderedChatMessages = 0;
+      let unreadChatCount = 0;
+      let chatOpen = false;
+      let audioContext = null;
+      let lastCombatSound = 0;
+      let glProgram = null;
+      let glBuffer = null;
+      let glLocations = null;
+      let cameraFocusX = 500;
+      let cameraYaw = 0;
+      let cameraElevation = .42;
+      let cameraDistance = 4000;
+      let cameraDragging = false;
+      let lastPointerX = 0;
+      let lastPointerY = 0;
+
+      function loadSavedDiamonds() {
+        try {
+          const saved = JSON.parse(localStorage.getItem("qalalar-jangi-diamonds") || "null");
+          if (Array.isArray(saved) && saved.length === 2 &&
+              saved.every(value => Number.isSafeInteger(value) && value >= 0)) return saved;
+        } catch (error) {
+          console.error("Saqlangan olmoslarni o‘qib bo‘lmadi:", error);
+        }
+        return [0, 0];
+      }
+      function saveDiamonds() {
+        if (state.mode === "online") return;
+        try {
+          localStorage.setItem("qalalar-jangi-diamonds", JSON.stringify(state.diamonds));
+        } catch (error) {
+          console.error("Olmoslarni saqlab bo‘lmadi:", error);
+          shopStatus.textContent = "Olmoslarni qurilmada saqlab bo‘lmadi.";
+        }
+      }
+
+      function compileShader(type, source) {
+        const shader = gl.createShader(type);
+        if (!shader) throw new Error("3D grafik shaderini yaratib bo‘lmadi.");
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          const error = gl.getShaderInfoLog(shader) || "3D grafik shaderida noma’lum xato.";
+          gl.deleteShader(shader);
+          throw new Error(error);
+        }
+        return shader;
+      }
+      function initialize3d() {
+        if (!gl) throw new Error("Ushbu brauzer WebGL 3D grafikani qo‘llab-quvvatlamaydi.");
+        const vertex = compileShader(gl.VERTEX_SHADER, `
+          attribute vec3 aPosition;
+          attribute vec3 aNormal;
+          attribute vec3 aColor;
+          uniform mat4 uViewProjection;
+          varying vec3 vColor;
+          varying vec3 vNormal;
+          void main() {
+            gl_Position = uViewProjection * vec4(aPosition, 1.0);
+            vColor = aColor;
+            vNormal = aNormal;
+          }
+        `);
+        const fragment = compileShader(gl.FRAGMENT_SHADER, `
+          precision mediump float;
+          varying vec3 vColor;
+          varying vec3 vNormal;
+          void main() {
+            vec3 lightDirection = normalize(vec3(-0.35, 0.8, 0.45));
+            float light = 0.55 + 0.45 * max(dot(normalize(vNormal), lightDirection), 0.0);
+            gl_FragColor = vec4(vColor * light, 1.0);
+          }
+        `);
+        glProgram = gl.createProgram();
+        if (!glProgram) throw new Error("3D grafik dasturini yaratib bo‘lmadi.");
+        gl.attachShader(glProgram, vertex);
+        gl.attachShader(glProgram, fragment);
+        gl.linkProgram(glProgram);
+        gl.deleteShader(vertex);
+        gl.deleteShader(fragment);
+        if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) {
+          throw new Error(gl.getProgramInfoLog(glProgram) || "3D grafik dasturini ulab bo‘lmadi.");
+        }
+        glBuffer = gl.createBuffer();
+        if (!glBuffer) throw new Error("3D sahna buferini yaratib bo‘lmadi.");
+        glLocations = {
+          position: gl.getAttribLocation(glProgram, "aPosition"),
+          normal: gl.getAttribLocation(glProgram, "aNormal"),
+          color: gl.getAttribLocation(glProgram, "aColor"),
+          viewProjection: gl.getUniformLocation(glProgram, "uViewProjection")
+        };
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+        gl.clearColor(.46, .77, .91, 1);
+      }
+      function hexColor(value) {
+        const hex = value.replace("#", "");
+        return [
+          parseInt(hex.slice(0, 2), 16) / 255,
+          parseInt(hex.slice(2, 4), 16) / 255,
+          parseInt(hex.slice(4, 6), 16) / 255
+        ];
+      }
+      function box(vertices, x, y, z, sizeX, sizeY, sizeZ, color) {
+        const c = Array.isArray(color) ? color : hexColor(color);
+        const x0 = x - sizeX / 2, x1 = x + sizeX / 2;
+        const y0 = y - sizeY / 2, y1 = y + sizeY / 2;
+        const z0 = z - sizeZ / 2, z1 = z + sizeZ / 2;
+        const faces = [
+          [[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1],[0,0,1]],
+          [[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0],[0,0,-1]],
+          [[x0,y0,z0],[x0,y0,z1],[x0,y1,z1],[x0,y1,z0],[-1,0,0]],
+          [[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[1,0,0]],
+          [[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],[x0,y1,z0],[0,1,0]],
+          [[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1],[0,-1,0]]
+        ];
+        for (const face of faces) {
+          const points = face.slice(0, 4);
+          const normal = face[4];
+          for (const index of [0, 1, 2, 0, 2, 3]) {
+            vertices.push(...points[index], ...normal, ...c);
+          }
+        }
+      }
+      function perspectiveMatrix(fov, aspect, near, far) {
+        const f = 1 / Math.tan(fov / 2);
+        const range = 1 / (near - far);
+        return new Float32Array([
+          f / aspect, 0, 0, 0,
+          0, f, 0, 0,
+          0, 0, (far + near) * range, -1,
+          0, 0, far * near * 2 * range, 0
+        ]);
+      }
+      function lookAtMatrix(eye, center) {
+        const normalize = vector => {
+          const length = Math.hypot(...vector) || 1;
+          return vector.map(value => value / length);
+        };
+        const subtract = (a, b) => a.map((value, index) => value - b[index]);
+        const cross = (a, b) => [
+          a[1] * b[2] - a[2] * b[1],
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0]
+        ];
+        const z = normalize(subtract(eye, center));
+        const x = normalize(cross([0, 1, 0], z));
+        const y = cross(z, x);
+        return new Float32Array([
+          x[0], y[0], z[0], 0,
+          x[1], y[1], z[1], 0,
+          x[2], y[2], z[2], 0,
+          -x.reduce((sum, value, index) => sum + value * eye[index], 0),
+          -y.reduce((sum, value, index) => sum + value * eye[index], 0),
+          -z.reduce((sum, value, index) => sum + value * eye[index], 0),
+          1
+        ]);
+      }
+      function multiplyMatrices(a, b) {
+        const result = new Float32Array(16);
+        for (let column = 0; column < 4; column++) {
+          for (let row = 0; row < 4; row++) {
+            result[column * 4 + row] =
+              a[row] * b[column * 4] +
+              a[4 + row] * b[column * 4 + 1] +
+              a[8 + row] * b[column * 4 + 2] +
+              a[12 + row] * b[column * 4 + 3];
+          }
+        }
+        return result;
+      }
+
+      function playSound(name) {
+        const AudioContextType = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextType) return;
+        if (!audioContext) audioContext = new AudioContextType();
+        if (audioContext.state === "suspended") {
+          audioContext.resume().catch(error => console.warn("O‘yin tovushini yoqib bo‘lmadi:", error));
+        }
+        const sounds = {
+          deploy: { notes: [330, 494], wave: "triangle", duration: .11, volume: .08 },
+          heal: { notes: [523, 784], wave: "sine", duration: .16, volume: .08 },
+          hit: { notes: [150], wave: "square", duration: .055, volume: .025 },
+          coin: { notes: [880, 1175], wave: "sine", duration: .12, volume: .08 },
+          win: { notes: [523, 659, 784], wave: "triangle", duration: .2, volume: .09 },
+          lose: { notes: [392, 330, 262], wave: "triangle", duration: .22, volume: .07 }
+        };
+        const sound = sounds[name];
+        if (!sound) return;
+        const startTime = audioContext.currentTime;
+        sound.notes.forEach((frequency, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          const noteStart = startTime + index * sound.duration * .72;
+          oscillator.type = sound.wave;
+          oscillator.frequency.setValueAtTime(frequency, noteStart);
+          gain.gain.setValueAtTime(.0001, noteStart);
+          gain.gain.exponentialRampToValueAtTime(sound.volume, noteStart + .01);
+          gain.gain.exponentialRampToValueAtTime(.0001, noteStart + sound.duration);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(noteStart);
+          oscillator.stop(noteStart + sound.duration);
+        });
+      }
+
+      function playCombatSound() {
+        const now = performance.now();
+        if (now - lastCombatSound < 140) return;
+        lastCombatSound = now;
+        playSound("hit");
+      }
+
+      function getPlayerName() {
+        const input = document.getElementById("player-name");
+        const name = input.value.trim();
+        if (name.length > 20) throw new Error("Ism 20 ta belgidan oshmasin.");
+        return name;
+      }
+      let width = 0, height = 0, dpr = 1;
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const floorY = () => 0;
+      const castleX = side => side === "player" ? 90 : 910;
+
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+        sceneCanvas.width = Math.floor(width * dpr);
+        sceneCanvas.height = Math.floor(height * dpr);
+        sceneCanvas.style.width = width + "px";
+        sceneCanvas.style.height = height + "px";
+        draw();
+      }
+      function drawCloud(x, y, scale) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = "#ffffff91";
+        ctx.beginPath();
+        ctx.arc(0, 9, 19, 0, Math.PI * 2);
+        ctx.arc(23, 0, 25, 0, Math.PI * 2);
+        ctx.arc(49, 10, 18, 0, Math.PI * 2);
+        ctx.rect(0, 9, 49, 20);
+        ctx.fill();
+        ctx.restore();
+      }
+      function drawCastle(x, side) {
+        const y = floorY();
+        const playerSide = side === "player";
+        const front = playerSide ? "#d7bc83" : "#aa8e91";
+        const sideColor = playerSide ? "#9e8358" : "#765d69";
+        const topColor = playerSide ? "#ead29b" : "#c19fa1";
+        const flag = playerSide ? "#3f89db" : "#df5960";
+        ctx.save();
+        ctx.translate(x, y);
+        const sideIndex = playerSide ? 0 : 1;
+        ctx.scale(
+          (playerSide ? 1 : -1) * castleWidthScale(sideIndex),
+          castleHeightScale(sideIndex)
+        );
+        ctx.fillStyle = "#00000020";
+        ctx.beginPath(); ctx.ellipse(4, 8, 83, 16, 0, 0, Math.PI * 2); ctx.fill();
+        const face = points => {
+          ctx.beginPath();
+          ctx.moveTo(points[0][0], points[0][1]);
+          for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+          ctx.closePath();
+          ctx.fill();
+        };
+        // Rearward faces and roof planes give the stonework a block-like 3D depth.
+        ctx.fillStyle = sideColor;
+        face([[48, -101], [67, -114], [67, -16], [48, -7]]);
+        ctx.fillStyle = topColor;
+        face([[-53, -101], [48, -101], [67, -114], [-34, -114]]);
+        ctx.fillStyle = front;
+        face([[-53, -101], [48, -101], [48, -7], [-53, -7]]);
+        ctx.fillStyle = sideColor;
+        face([[48, -7], [67, -16], [67, -2], [48, 7]]);
+        ctx.fillStyle = "#614944";
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-5, -45); ctx.quadraticCurveTo(15, -72, 36, -45); ctx.lineTo(36, 0); ctx.closePath(); ctx.fill();
+        const tower = (left, bottom, top) => {
+          const right = left + 34;
+          ctx.fillStyle = sideColor;
+          face([[right, top], [right + 13, top - 9], [right + 13, bottom - 8], [right, bottom]]);
+          ctx.fillStyle = topColor;
+          face([[left, top], [right, top], [right + 13, top - 9], [left + 13, top - 9]]);
+          ctx.fillStyle = front;
+          ctx.fillRect(left, top, 34, bottom - top);
+          ctx.fillStyle = "#514b4a";
+          ctx.fillRect(left + 11, top + 23, 8, 16);
+          ctx.fillStyle = topColor;
+          for (let i = 0; i < 3; i++) {
+            const bx = left - 4 + i * 17;
+            ctx.fillRect(bx, top - 10, 10, 13);
+            ctx.fillStyle = i === 1 ? front : topColor;
+          }
+        };
+        tower(-64, -5, -122);
+        tower(30, -5, -122);
+        ctx.fillStyle = sideColor;
+        face([[31, -112], [47, -122], [47, -8], [31, -1]]);
+        ctx.fillStyle = topColor;
+        face([[-7, -112], [31, -112], [47, -122], [9, -122]]);
+        ctx.fillStyle = front;
+        ctx.fillRect(-7, -112, 38, 111);
+        ctx.fillStyle = "#514b4a";
+        ctx.fillRect(6, -81, 8, 18);
+        ctx.fillRect(-43, -62, 8, 16);
+        ctx.fillRect(42, -62, 8, 16);
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 3; col++) {
+            const wx = -39 + col * 38 + (row % 2) * 5;
+            ctx.fillStyle = "#ffffff2e";
+            ctx.fillRect(wx, -93 + row * 25, 18, 2);
+          }
+        }
+        ctx.strokeStyle = "#594b45"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(2, -116); ctx.lineTo(2, -170); ctx.stroke();
+        ctx.fillStyle = flag;
+        ctx.beginPath();
+        ctx.moveTo(3, -169); ctx.lineTo(35, -158); ctx.lineTo(3, -147);
+        ctx.closePath(); ctx.fill();
+        const towerCount = state.towers[playerSide ? 0 : 1] || 0;
+        for (let i = 0; i < towerCount; i++) {
+          const tx = [-39, 0, 39][i];
+          ctx.fillStyle = playerSide ? "#315c7c" : "#803e4a";
+          ctx.fillRect(tx - 5, -133, 10, 12);
+          ctx.fillStyle = "#f0c39a";
+          ctx.beginPath(); ctx.arc(tx, -136, 4, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = "#3a302b"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(tx + 3, -133); ctx.lineTo(tx + 13, -139); ctx.stroke();
+        }
+        const upgradeLevel = state.castleUpgrades[playerSide ? 0 : 1] || 0;
+        if (upgradeLevel) {
+          ctx.fillStyle = "#ffd164";
+          ctx.font = "bold 13px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText("★".repeat(upgradeLevel), 2, -181);
+        }
+        ctx.restore();
+      }
+      function drawUnit(unit) {
+        const bob = Math.sin(state.elapsed * 9 + unit.id) * 2;
+        const y = floorY() - 5 + bob;
+        ctx.save();
+        ctx.translate(unit.x, y);
+        if (unit.side === "enemy") ctx.scale(-1, 1);
+        ctx.fillStyle = "#00000025";
+        ctx.beginPath(); ctx.ellipse(0, 3, unit.stats.size * .8, 4, 0, 0, Math.PI * 2); ctx.fill();
+        if (unit.type === "knight") {
+          ctx.fillStyle = "#dde5eb"; ctx.beginPath(); ctx.arc(0, -unit.stats.size - 3, 9, Math.PI, 0); ctx.fill();
+          ctx.fillStyle = "#8297a7"; ctx.fillRect(-10, -unit.stats.size - 4, 20, 5);
+        } else {
+          ctx.fillStyle = "#efc19b"; ctx.beginPath(); ctx.arc(0, -unit.stats.size - 5, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = unit.type === "mage" ? "#513879" : unit.type === "archer" ? "#7b5536" : "#5b3b2b";
+          if (unit.type === "mage") {
+            ctx.beginPath();
+            ctx.moveTo(-10, -unit.stats.size - 8);
+            ctx.lineTo(0, -unit.stats.size - 25);
+            ctx.lineTo(10, -unit.stats.size - 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillRect(-11, -unit.stats.size - 8, 22, 4);
+          } else {
+            ctx.fillRect(-8, -unit.stats.size - 12, 16, 5);
+          }
+        }
+        ctx.fillStyle = unit.side === "enemy" ? "#d4525d" : unit.stats.color;
+        ctx.fillRect(-unit.stats.size * .55, -unit.stats.size - 1, unit.stats.size * 1.1, unit.stats.size + 7);
+        ctx.fillStyle = "#493d38"; ctx.fillRect(-unit.stats.size * .48, 4, 5, 8); ctx.fillRect(2, 4, 5, 8);
+        if (unit.type === "archer") {
+          ctx.strokeStyle = "#815932"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(10, -unit.stats.size + 1, 8, -1.3, 1.3); ctx.stroke();
+        } else if (unit.type === "mage") {
+          ctx.strokeStyle = "#6f4ca8"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(8, -unit.stats.size + 7); ctx.lineTo(13, -unit.stats.size - 10); ctx.stroke();
+          ctx.fillStyle = "#d5aaff"; ctx.beginPath(); ctx.arc(13, -unit.stats.size - 12, 4, 0, Math.PI * 2); ctx.fill();
+        } else if (unit.type === "pistol" || unit.type === "laser") {
+          ctx.fillStyle = "#31363c";
+          ctx.fillRect(7, -unit.stats.size + 1, unit.type === "laser" ? 17 : 13, 4);
+          ctx.fillRect(10, -unit.stats.size + 4, 4, 6);
+        } else if (unit.type === "cannon") {
+          ctx.fillStyle = "#424c56";
+          ctx.fillRect(5, -unit.stats.size + 1, 22, 8);
+          ctx.fillStyle = "#a7b1b6";
+          ctx.fillRect(23, -unit.stats.size + 2, 8, 6);
+        } else if (unit.type === "spearman") {
+          ctx.strokeStyle = "#754d2d"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(7, -unit.stats.size + 8); ctx.lineTo(22, -unit.stats.size - 13); ctx.stroke();
+          ctx.fillStyle = "#d4d9da";
+          ctx.beginPath(); ctx.moveTo(22, -unit.stats.size - 13); ctx.lineTo(16, -unit.stats.size - 11); ctx.lineTo(20, -unit.stats.size - 6); ctx.closePath(); ctx.fill();
+        } else {
+          ctx.strokeStyle = "#d9d9d1"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(8, -unit.stats.size + 6); ctx.lineTo(15, -unit.stats.size - 5); ctx.stroke();
+        }
+        const barW = unit.stats.size * 1.7;
+        ctx.fillStyle = "#2e3335"; ctx.fillRect(-barW / 2, -unit.stats.size - 20, barW, 3);
+        ctx.fillStyle = "#62d779"; ctx.fillRect(-barW / 2, -unit.stats.size - 20, barW * clamp(unit.hp / unit.stats.hp, 0, 1), 3);
+        ctx.restore();
+        if (unit.type === "laser" && unit.cooldown > unit.stats.interval - .12) {
+          const enemySide = unit.side === "player" ? "enemy" : "player";
+          const target = state.units
+            .filter(other => other.side === enemySide && other.hp > 0 &&
+              Math.abs(other.x - unit.x) <= unit.stats.range)
+            .sort((a, b) => Math.abs(a.x - unit.x) - Math.abs(b.x - unit.x))[0];
+          const castleIndex = unit.side === "player" ? 1 : 0;
+          const castleTargetX = unit.side === "player"
+            ? castleX("enemy") - 67 * castleWidthScale(castleIndex)
+            : castleX("player") + 67 * castleWidthScale(castleIndex);
+          if (target || Math.abs(castleTargetX - unit.x) <= unit.stats.range) {
+            ctx.save();
+            ctx.strokeStyle = "#e7ffff";
+            ctx.lineWidth = 5;
+            ctx.shadowColor = "#19e8ff";
+            ctx.shadowBlur = 18;
+            ctx.beginPath();
+            ctx.moveTo(unit.x + (unit.side === "player" ? 17 : -17), floorY() - unit.stats.size - 7);
+            ctx.lineTo(target ? target.x : castleTargetX, target ? floorY() - 20 : floorY() - 150 * castleHeightScale(castleIndex));
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+      function draw() {
+        if (!gl || !glProgram || width === 0 || height === 0) return;
+        const targetX = state.units.length
+          ? state.units.reduce((sum, unit) => sum + unit.x, 0) / state.units.length
+          : 500;
+        cameraFocusX += (mapWorldX(clamp(targetX, 90, 910)) - cameraFocusX) * .035;
+        const aspect = width / height;
+        const distance = Math.max(cameraDistance, 480 / Math.max(aspect, .35));
+        const horizontalDistance = Math.cos(cameraElevation) * distance;
+        const eye = [
+          cameraFocusX - Math.sin(cameraYaw) * horizontalDistance,
+          50 + Math.sin(cameraElevation) * distance,
+          Math.cos(cameraYaw) * horizontalDistance
+        ];
+        const viewProjection = multiplyMatrices(
+          perspectiveMatrix(Math.PI / 3.1, aspect, 1, 15000),
+          lookAtMatrix(eye, [cameraFocusX, 38, 0])
+        );
+        const vertices = [];
+        box(vertices, 500, -18, 0, 5600, 36, 2600, "#805738");
+        box(vertices, 500, 1, 0, 5400, 4, 2300, "#73aa56");
+        box(vertices, 500, 3, 0, 5300, 2, 90, "#b39161");
+        for (let x = -1900; x <= 2900; x += 230) {
+          const z = x % 420 < 210 ? -560 : 580;
+          const treeColor = x % 2 ? "#36794a" : "#478d4e";
+          box(vertices, x, 7, z, 22, 12, 20, "#477c43");
+          box(vertices, x, 23, z, 9, 25, 9, "#725033");
+          box(vertices, x, 38, z, 35, 35, 32, treeColor);
+        }
+        for (const side of ["player", "enemy"]) {
+          const sideIndex = side === "player" ? 0 : 1;
+          const x = mapWorldX(castleX(side));
+          const sx = castleWidthScale(sideIndex);
+          const sy = castleHeightScale(sideIndex);
+          const base = side === "player" ? "#b59b70" : "#9a7780";
+          const roof = side === "player" ? "#e0c68f" : "#c99da6";
+          const dark = side === "player" ? "#806b4e" : "#704f5d";
+          box(vertices, x, 42 * sy, 0, 102 * sx, 84 * sy, 92 * sx, base);
+          box(vertices, x, 85 * sy, 0, 108 * sx, 10 * sy, 96 * sx, roof);
+          box(vertices, x, 18 * sy, 49 * sx, 32 * sx, 36 * sy, 12 * sx, "#55413b");
+          for (const offset of [-39, 39]) {
+            box(vertices, mapWorldX(castleX(side) + offset * sx), 69 * sy, 0, 34 * sx, 138 * sy, 38 * sx, base);
+            box(vertices, mapWorldX(castleX(side) + offset * sx), 141 * sy, 0, 42 * sx, 8 * sy, 46 * sx, roof);
+            for (let crenel = -1; crenel <= 1; crenel++) {
+              box(vertices, mapWorldX(castleX(side) + (offset + crenel * 13) * sx), 151 * sy, 0, 8 * sx, 12 * sy, 18 * sx, roof);
+            }
+          }
+          const towerCount = state.towers[sideIndex] || 0;
+          for (let index = 0; index < towerCount; index++) {
+            const tx = mapWorldX(castleX(side) + (index - 1) * 22 * sx);
+            box(vertices, tx, 160 * sy, 0, 10 * sx, 16 * sy, 10 * sx, side === "player" ? "#315c7c" : "#803e4a");
+          }
+          const upgradeCount = state.castleUpgrades[sideIndex];
+          for (let index = 0; index < Math.min(upgradeCount, 12); index++) {
+            const z = (index - 5.5) * 11;
+            box(vertices, mapWorldX(castleX(side) + (side === "player" ? 55 : -55) * sx), 7, z, 5, 8, 5, "#ffd164");
+          }
+        }
+        for (const unit of state.units) {
+          const bob = Math.sin(state.elapsed * 9 + unit.id) * 2;
+          const color = unit.side === "enemy" ? "#d4525d" : unit.stats.color;
+          const x = mapWorldX(unit.x), z = unit.side === "player" ? -13 : 13;
+          box(vertices, x, 13 + bob, z, unit.stats.size * 1.1, 24, 13, color);
+          box(vertices, x, 31 + bob, z, 13, 13, 13, "#efc19b");
+          if (unit.type === "cannon") box(vertices, mapWorldX(unit.x + 16), 20 + bob, z, 26, 10, 10, "#424c56");
+          else if (unit.type === "laser") box(vertices, mapWorldX(unit.x + 13), 21 + bob, z, 22, 5, 5, "#36f5ff");
+          else if (unit.type === "spearman") box(vertices, mapWorldX(unit.x + 13), 32 + bob, z, 4, 28, 4, "#d4d9da");
+          else if (unit.type === "pistol") box(vertices, mapWorldX(unit.x + 12), 23 + bob, z, 15, 5, 5, "#31363c");
+          else if (unit.type === "mage") box(vertices, x, 43 + bob, z, 15, 7, 15, "#513879");
+          const barColor = unit.hp / unit.stats.hp > .5 ? "#60d578" : "#ff655b";
+          box(vertices, x, 47 + bob, z, 25, 3, 3, "#26323a");
+          box(vertices, mapWorldX(unit.x - 12.5 + 12.5 * clamp(unit.hp / unit.stats.hp, 0, 1)), 47.5 + bob, z + 2, 25 * clamp(unit.hp / unit.stats.hp, 0, 1), 2, 2, barColor);
+        }
+        for (const particle of state.particles) {
+          box(vertices, mapWorldX(particle.x), 65 + (particle.life * 15), 0, 8, 8, 8, particle.color);
+        }
+        const data = new Float32Array(vertices);
+        gl.viewport(0, 0, sceneCanvas.width, sceneCanvas.height);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.useProgram(glProgram);
+        gl.uniformMatrix4fv(glLocations.viewProjection, false, viewProjection);
+        gl.bindBuffer(gl.ARRAY_BUFFER, glBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+        const stride = 9 * Float32Array.BYTES_PER_ELEMENT;
+        gl.enableVertexAttribArray(glLocations.position);
+        gl.vertexAttribPointer(glLocations.position, 3, gl.FLOAT, false, stride, 0);
+        gl.enableVertexAttribArray(glLocations.normal);
+        gl.vertexAttribPointer(glLocations.normal, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(glLocations.color);
+        gl.vertexAttribPointer(glLocations.color, 3, gl.FLOAT, false, stride, 6 * Float32Array.BYTES_PER_ELEMENT);
+        gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 9);
+      }
+      function makeUnit(type, side) {
+        const stats = settings[type];
+        const sideIndex = side === "player" ? 0 : 1;
+        const spawnX = side === "player"
+          ? castleX("player") + 70 * castleWidthScale(sideIndex)
+          : castleX("enemy") - 70 * castleWidthScale(sideIndex);
+        state.units.push({
+          type, side, x: spawnX, hp: stats.hp, stats, cooldown: Math.random() * .4,
+          id: Math.random() * 10000
+        });
+      }
+      function hire(type, side) {
+        if (!state.running || (side === "enemy" && state.mode !== "local" && state.mode !== "online")) return;
+        if (type === "tower") {
+          buildTower(side);
+          return;
+        }
+        const config = settings[type];
+        if (state.mode === "online") {
+          sendOnlineAction(type);
+          return;
+        }
+        const wallet = side === "player" ? "gold" : "enemyGold";
+        if (state[wallet] < config.cost) {
+          roundLabel.textContent = `${side === "player" ? "1-o‘yinchi" : "2-o‘yinchi"}: tanga yetarli emas!`;
+          return;
+        }
+        state[wallet] -= config.cost;
+        makeUnit(type, side);
+        playSound("deploy");
+        updateUI();
+      }
+      function buildTower(side) {
+        if (state.mode === "online") {
+          sendOnlineAction("tower");
+          return;
+        }
+        const index = side === "player" ? 0 : 1;
+        const wallet = index === 0 ? "gold" : "enemyGold";
+        if (state.towers[index] >= tower.limit) {
+          roundLabel.textContent = "Qal’ada 3 ta himoya minorasi bor.";
+          return;
+        }
+        if (state[wallet] < tower.cost) {
+          roundLabel.textContent = "Minora qurish uchun tanga yetarli emas.";
+          return;
+        }
+        state[wallet] -= tower.cost;
+        state.towers[index]++;
+        state.towerCooldowns[index].push(0);
+        playSound("deploy");
+        updateUI();
+      }
+      function upgradeCastle(side) {
+        if (!state.running || (side === "enemy" && state.mode !== "local" && state.mode !== "online")) return;
+        if (state.mode === "online") {
+          sendOnlineAction("upgrade");
+          return;
+        }
+        const index = side === "player" ? 0 : 1;
+        const wallet = index === 0 ? "gold" : "enemyGold";
+        if (state.castleUpgrades[index] >= state.castleUpgradeLimits[index]) {
+          roundLabel.textContent = "Qal’a yangilash limiti tugadi.";
+          return;
+        }
+        if (state[wallet] < castleUpgrade.cost) {
+          roundLabel.textContent = "Qal’ani yangilash uchun 100 tanga kerak.";
+          return;
+        }
+        state[wallet] -= castleUpgrade.cost;
+        state.castleUpgrades[index]++;
+        if (state.castleUpgrades[index] % 3 === 0) {
+          state.castleUpgradeLimits[index] += castleUpgrade.unlockPerThree;
+        }
+        state.castleMaxHp[index] += castleUpgrade.hp;
+        if (index === 0) state.playerHp = state.castleMaxHp[index];
+        else state.enemyHp = state.castleMaxHp[index];
+        playSound("deploy");
+        updateUI();
+      }
+      function healCastle(side) {
+        if (!state.running || (side === "enemy" && state.mode !== "local" && state.mode !== "online")) return;
+        if (state.mode === "online") {
+          sendOnlineAction("heal");
+          return;
+        }
+        const index = side === "player" ? 0 : 1;
+        const wallet = index === 0 ? "gold" : "enemyGold";
+        const hp = index === 0 ? state.playerHp : state.enemyHp;
+        if (hp >= state.castleMaxHp[index]) {
+          roundLabel.textContent = "Qal’a joni to‘liq.";
+          return;
+        }
+        if (state[wallet] < castleHeal.cost) {
+          roundLabel.textContent = "Davolash uchun 40 tanga kerak.";
+          return;
+        }
+        state[wallet] -= castleHeal.cost;
+        if (index === 0) state.playerHp = Math.min(state.castleMaxHp[index], hp + castleHeal.hp);
+        else state.enemyHp = Math.min(state.castleMaxHp[index], hp + castleHeal.hp);
+        playSound("heal");
+        updateUI();
+      }
+      function updateUI() {
+        const ownGold = state.mode === "online" && onlineRoom?.player === 2 ? state.enemyGold : state.gold;
+        const otherGold = state.mode === "online" && onlineRoom?.player === 2 ? state.gold : state.enemyGold;
+        const ownIndex = state.mode === "online" && onlineRoom?.player === 2 ? 1 : 0;
+        const otherIndex = 1 - ownIndex;
+        const shopIndex = state.mode === "online" ? ownIndex : state.mode === "local" ? Number(shopSide.value) : 0;
+        goldLabel.textContent = Math.floor(ownGold);
+        enemyGoldLabel.textContent = Math.floor(otherGold);
+        opponentGoldBox.style.display = state.mode === "local" || state.mode === "online" ? "block" : "none";
+        opponentDiamondsBox.style.display = state.mode === "local" || state.mode === "online" ? "block" : "none";
+        playerCastleLabel.textContent = `${state.mode === "local" || state.mode === "online" ? "🛡️ 1-o‘yinchi qal’asi" : "🛡️ Sening qal’ang"} · ${castleUpgradeProgress(0)}`;
+        enemyCastleLabel.textContent = `${state.mode === "local" || state.mode === "online" ? "🏰 2-o‘yinchi qal’asi" : "🏰 Dushman qal'asi"} · ${castleUpgradeProgress(1)}`;
+        chainLabel.textContent = state.chain;
+        diamondsLabel.textContent = state.diamonds[ownIndex];
+        enemyDiamondsLabel.textContent = state.diamonds[otherIndex];
+        shopDiamondsLabel.textContent = state.diamonds[shopIndex];
+        shopSideRow.hidden = state.mode !== "local";
+        playerHpText.textContent = `${Math.ceil(state.playerHp)}/${state.castleMaxHp[0]}`;
+        enemyHpText.textContent = `${Math.ceil(state.enemyHp)}/${state.castleMaxHp[1]}`;
+        playerHealth.style.width = clamp(state.playerHp / state.castleMaxHp[0] * 100, 0, 100) + "%";
+        enemyHealth.style.width = clamp(state.enemyHp / state.castleMaxHp[1] * 100, 0, 100) + "%";
+        for (const button of unitButtons) {
+          const side = button.dataset.side;
+          const allowed = side === "player" || state.mode === "local" || state.mode === "online";
+          const index = side === "player" ? 0 : 1;
+          const cost = button.dataset.unit === "tower" ? tower.cost : settings[button.dataset.unit].cost;
+          const wallet = side === "player" ? state.gold : state.enemyGold;
+          const canAfford = state.mode === "online" ? ownGold >= cost : wallet >= cost;
+          const towerLimitReached = button.dataset.unit === "tower" && state.towers[index] >= tower.limit;
+          button.disabled = !state.running || !allowed || !canAfford || towerLimitReached ||
+            (state.mode === "online" && side !== onlineSide());
+        }
+        for (const row of document.querySelectorAll("[data-castle-actions]")) {
+          const side = row.dataset.castleActions;
+          row.hidden = side === "enemy"
+            ? state.mode !== "local" && (state.mode !== "online" || onlineSide() !== "enemy")
+            : state.mode === "online" && onlineSide() !== "player";
+        }
+        for (const button of castleActionButtons) {
+          const side = button.dataset.side;
+          const index = side === "player" ? 0 : 1;
+          const wallet = side === "player" ? state.gold : state.enemyGold;
+          const isUpgrade = button.dataset.castleAction === "upgrade";
+          const cost = isUpgrade ? castleUpgrade.cost : castleHeal.cost;
+          const hp = index === 0 ? state.playerHp : state.enemyHp;
+          const canAfford = state.mode === "online" ? ownGold >= cost : wallet >= cost;
+          const unavailable = isUpgrade
+            ? state.castleUpgrades[index] >= state.castleUpgradeLimits[index]
+            : hp >= state.castleMaxHp[index];
+          button.disabled = !state.running || !canAfford || unavailable ||
+            (state.mode === "online" && side !== onlineSide());
+          if (isUpgrade) button.textContent = `⬆️ ${castleUpgradeProgress(index)} · ${cost}🪙`;
+        }
+        for (const button of shopProductButtons) {
+          const index = state.mode === "online" ? ownIndex : state.mode === "local" ? Number(shopSide.value) : 0;
+          const diamonds = state.diamonds[index];
+          const price = { gold: 10, heal: 25, boost: 50 }[button.dataset.shopProduct];
+          const hp = index === 0 ? state.playerHp : state.enemyHp;
+          const unavailable = button.dataset.shopProduct === "heal" && hp >= state.castleMaxHp[index] ||
+            button.dataset.shopProduct === "boost" && state.damageBoosts[index] > 1;
+          button.disabled = !state.running || diamonds < price || unavailable;
+        }
+      }
+      function purchaseShopProduct(product) {
+        if (!state.running) {
+          shopStatus.textContent = "Do‘kondan jang boshlanganidan keyin foydalanish mumkin.";
+          return;
+        }
+        const index = state.mode === "online" ? onlineRoom.player - 1 : state.mode === "local" ? Number(shopSide.value) : 0;
+        if (state.mode === "online") {
+          sendOnlineAction(`shop-${product}`);
+          return;
+        }
+        const prices = { gold: 10, heal: 25, boost: 50 };
+        if (!(product in prices)) return;
+        if (state.diamonds[index] < prices[product]) {
+          shopStatus.textContent = "Olmos yetarli emas.";
+          return;
+        }
+        if (product === "heal") {
+          const hp = index === 0 ? state.playerHp : state.enemyHp;
+          if (hp >= state.castleMaxHp[index]) {
+            shopStatus.textContent = "Qal’a joni to‘liq.";
+            return;
+          }
+          state.diamonds[index] -= prices.heal;
+          if (index === 0) state.playerHp = Math.min(state.castleMaxHp[index], hp + 500);
+          else state.enemyHp = Math.min(state.castleMaxHp[index], hp + 500);
+          shopStatus.textContent = "Qal’aga 500 jon qo‘shildi.";
+        } else if (product === "gold") {
+          state.diamonds[index] -= prices.gold;
+          if (index === 0) state.gold += 1000;
+          else state.enemyGold += 1000;
+          shopStatus.textContent = "1000 tanga olindi.";
+        } else {
+          if (state.damageBoosts[index] > 1) {
+            shopStatus.textContent = "Ikki karra zarar kuchaytirishi bu jangda allaqachon ishlatilgan.";
+            return;
+          }
+          state.diamonds[index] -= prices.boost;
+          state.damageBoosts[index] = 2;
+          shopStatus.textContent = "Askarlaringiz bu jangda ikki karra zarar yetkazadi.";
+        }
+        saveDiamonds();
+        playSound("coin");
+        updateUI();
+      }
+      function addFloat(text, x, y, color) {
+        state.particles.push({ text, x, y, color, life: .55 });
+      }
+      function damageCastle(side, damage) {
+        if (side === "player") state.playerHp = Math.max(0, state.playerHp - damage);
+        else state.enemyHp = Math.max(0, state.enemyHp - damage);
+      }
+      function update(dt) {
+        if (!state.running) return;
+        if (state.mode === "online") return;
+        state.elapsed += dt;
+        state.spawnTimer -= dt;
+        if (state.mode === "solo" && state.spawnTimer <= 0) {
+          const types = ["swordsman", "swordsman", "archer", "knight", "mage", "pistol", "cannon", "spearman", "laser"];
+          makeUnit(types[Math.floor(Math.random() * types.length)], "enemy");
+          state.spawnTimer = Math.max(2.4, 5.6 - state.elapsed / 70);
+          state.wave = Math.floor(state.elapsed / 22) + 1;
+          roundLabel.textContent = `Dushman to‘lqini ${state.wave}`;
+        }
+        for (let sideIndex = 0; sideIndex < 2; sideIndex++) {
+          const defendedSide = sideIndex === 0 ? "player" : "enemy";
+          const enemySide = sideIndex === 0 ? "enemy" : "player";
+          const castlePosition = castleX(defendedSide);
+          state.towerCooldowns[sideIndex] = state.towerCooldowns[sideIndex].map(cooldown => cooldown - dt);
+          for (let index = 0; index < state.towers[sideIndex]; index++) {
+            if (state.towerCooldowns[sideIndex][index] > 0) continue;
+            const target = state.units
+              .filter(unit => unit.side === enemySide && Math.abs(unit.x - castlePosition) <= tower.range)
+              .sort((a, b) => Math.abs(a.x - castlePosition) - Math.abs(b.x - castlePosition))[0];
+            if (target) {
+              target.hp -= tower.damage;
+              state.towerCooldowns[sideIndex][index] = tower.interval;
+              addFloat(`-${tower.damage}`, target.x, floorY() - 36, "#ffe08b");
+              playCombatSound();
+            }
+          }
+        }
+        for (const unit of state.units) {
+          unit.cooldown -= dt;
+          let target = null;
+          let nearest = Infinity;
+          for (const other of state.units) {
+            if (other.side === unit.side || other.hp <= 0) continue;
+            const distance = Math.abs(other.x - unit.x);
+            if (distance < nearest && distance <= unit.stats.range) { nearest = distance; target = other; }
+          }
+          if (target && unit.cooldown <= 0) {
+            const damage = unit.stats.damage * state.damageBoosts[unit.side === "player" ? 0 : 1];
+            const victims = unit.stats.splashRadius
+              ? state.units.filter(other =>
+                other.side !== unit.side && other.hp > 0 &&
+                Math.abs(other.x - target.x) <= unit.stats.splashRadius)
+              : [target];
+            for (const victim of victims) {
+              victim.hp -= damage;
+              addFloat(`-${damage}`, victim.x, floorY() - 32, "#fff1bb");
+            }
+            unit.cooldown = unit.stats.interval;
+            playCombatSound();
+          } else {
+            const targetSideIndex = unit.side === "player" ? 1 : 0;
+            const castleTarget = unit.side === "player"
+              ? castleX("enemy") - 67 * castleWidthScale(targetSideIndex)
+              : castleX("player") + 67 * castleWidthScale(targetSideIndex);
+            const distance = Math.abs(castleTarget - unit.x);
+            if (!target && distance <= unit.stats.range) {
+              if (unit.cooldown <= 0) {
+                const damage = unit.stats.damage * state.damageBoosts[unit.side === "player" ? 0 : 1];
+                damageCastle(unit.side === "player" ? "enemy" : "player", damage);
+                unit.cooldown = unit.stats.interval;
+                addFloat(`-${damage}`, castleTarget, floorY() - 158, "#ffe0a1");
+                playCombatSound();
+              }
+            } else if (!target) {
+              unit.x += (unit.side === "player" ? 1 : -1) * unit.stats.speed * dt;
+            }
+          }
+        }
+        const defeatedUnits = state.units.filter(unit => unit.hp <= 0);
+        for (const unit of defeatedUnits) {
+          const rewardWallet = unit.side === "enemy" ? "gold" : "enemyGold";
+          const reward = unitKillRewards[unit.type];
+          state[rewardWallet] += reward;
+          if (unit.type === "laser") {
+            state.diamonds[unit.side === "enemy" ? 0 : 1] += 100;
+            saveDiamonds();
+          }
+          addFloat(`+${reward} 🪙`, unit.x, floorY() - 48, "#ffe08b");
+          playSound("coin");
+        }
+        state.units = state.units.filter(unit => unit.hp > 0);
+        state.particles = state.particles.filter(particle => {
+          particle.life -= dt;
+          particle.y -= 20 * dt;
+          return particle.life > 0;
+        });
+        if (state.enemyHp <= 0) finish("player");
+        if (state.playerHp <= 0) finish("enemy");
+        updateUI();
+      }
+      function finish(winner) {
+        if (!state.running) return;
+        state.running = false;
+        const winnerIsLeft = winner === "player";
+        const playerWon = state.mode === "online" ? winnerIsLeft === (onlineRoom?.player === 1) : winnerIsLeft;
+        playSound(playerWon ? "win" : "lose");
+        const winnerName = state.mode === "local" || state.mode === "online"
+          ? `${winnerIsLeft ? "1-o‘yinchi" : "2-o‘yinchi"} g‘alaba qildi!`
+          : (playerWon ? "G‘ALABA!" : "MAG‘LUBIYAT");
+        if (state.mode !== "online") {
+          if (state.mode === "local") state[playerWon ? "gold" : "enemyGold"] += 10;
+          if (state.mode === "local" || playerWon) {
+            if (state.mode === "solo") state.gold += 10;
+            state.chain += 10;
+            state.diamonds[state.mode === "local" && !winnerIsLeft ? 1 : 0] += 10;
+            saveDiamonds();
+          }
+        }
+        document.getElementById("result-title").textContent = winnerName;
+        document.getElementById("result-text").textContent =
+          `G‘olibga mukofot: +10 tanga, +10 zanjir va +10 olmos. Qayta o‘ynash yoki yuqoridagi “Bosh menyu”ni tanlash mumkin.`;
+        document.getElementById("restart").textContent = state.mode === "online" ? "Bosh menyuga qaytish" : "Qayta o‘ynash";
+        message.classList.remove("hidden");
+        updateUI();
+      }
+      function startGame(mode, carryGold = false) {
+        stopOnlinePolling();
+        onlineRoom = null;
+        lastOnlineSnapshot = null;
+        roomChat.classList.remove("visible", "floating");
+        document.getElementById("online-panel").append(roomChat);
+        onlineStatus.style.display = "none";
+        state.gold = startingGold;
+        state.playerHp = 1000; state.enemyHp = 1000;
+        state.enemyGold = startingGold;
+        state.chain = 0; state.diamonds = loadSavedDiamonds(); state.damageBoosts = [1, 1];
+        state.towers = [0, 0]; state.towerCooldowns = [[], []];
+        state.castleMaxHp = [1000, 1000]; state.castleUpgrades = [0, 0];
+        state.castleUpgradeLimits = [castleUpgrade.initialLimit, castleUpgrade.initialLimit];
+        state.units = []; state.particles = []; state.elapsed = 0; state.spawnTimer = 4;
+        state.wave = 1; state.mode = mode; state.running = true;
+        shopSide.value = "0";
+        shopStatus.textContent = "Olmosni foydali mukofotlarga almashtiring.";
+        shopPanel.hidden = true;
+        roundLabel.textContent = mode === "local" ? "2 o‘yinchi jangi!" : "Jang boshlandi!";
+        mainMenu.classList.add("hidden");
+        soloControls.style.display = mode === "solo" ? "flex" : "none";
+        duelControls.style.display = mode === "local" ? "flex" : "none";
+        unitButtons.forEach(button => {
+          if (button.closest("#solo-controls")) button.dataset.side = "player";
+          button.hidden = button.closest("#solo-controls") && mode !== "solo";
+        });
+        document.getElementById("help").innerHTML = mode === "local"
+          ? "<strong>2 o‘yinchi:</strong> 1-o‘yinchi 1–5, Q W E; 2-o‘yinchi 6–0, I O P yoki ekrandagi tugmalarni ishlating.<br><strong>Mukofot:</strong> askar turiga qarab tanga; sarflanmagan tanga qayta jangda qoladi."
+          : "<strong>Vazifa:</strong> askar chiqarib dushman qal'asini yeng!<br><strong>Mukofot:</strong> sehrgar 100, to‘pponchachi 120, zambarakchi 500, nayzachi 400 tanga; qolgan askarlar 20 tanga beradi. Sarflanmagan tanga keyingi jangga o‘tadi. G‘alaba mukofoti: 10 tanga, 10 zanjir, 10 olmos.";
+        onlinePanel.hidden = true;
+        message.classList.add("hidden");
+        updateUI();
+      }
+      function showMainMenu() {
+        state.running = false;
+        stopOnlinePolling();
+        onlineRoom = null;
+        chatToggle.hidden = true;
+        unreadChatCount = 0;
+        chatOpen = false;
+        roomChat.classList.remove("collapsed", "visible", "floating");
+        document.getElementById("online-panel").append(roomChat);
+        onlineStatus.style.display = "none";
+        message.classList.add("hidden");
+        mainMenu.classList.remove("hidden");
+        soloControls.style.display = "none";
+        duelControls.style.display = "none";
+        updateUI();
+      }
+      function onlineSide() {
+        return onlineRoom?.player === 2 ? "enemy" : "player";
+      }
+      async function requestApi(path, options = {}) {
+        const response = await fetch(path, {
+          ...options,
+          headers: { "content-type": "application/json", ...(options.headers || {}) }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Server so‘rovni qabul qilmadi.");
+        return data;
+      }
+      function showOnlineError(error) {
+        const detail = location.protocol === "file:"
+          ? "O‘yin fayl sifatida ochilgan. Serverni node server.mjs bilan ishga tushirib, shu qurilmada http://localhost:3000 manzilini oching. Boshqa qurilmaga umumiy server manzili kerak."
+          : error instanceof TypeError
+            ? "Serverga ulanib bo‘lmadi. Serverni ishga tushiring va ikkala qurilmada ham uning bir xil manzilini oching."
+            : error.message;
+        roomStatus.textContent = detail;
+      }
+      function stopOnlinePolling() {
+        if (onlinePollTimer) clearTimeout(onlinePollTimer);
+        onlinePollTimer = 0;
+        polling = false;
+      }
+      function enterOnlineGame() {
+        if (state.mode === "online" && state.running) return;
+        state.mode = "online";
+        state.running = true;
+        shopStatus.textContent = "Olmosni foydali mukofotlarga almashtiring.";
+        shopPanel.hidden = true;
+        mainMenu.classList.add("hidden");
+        roomChat.classList.add("floating");
+        document.body.append(roomChat);
+        setChatOpen(false);
+        soloControls.style.display = "flex";
+        duelControls.style.display = "none";
+        unitButtons.forEach(button => {
+          if (!button.closest("#solo-controls")) return;
+          button.hidden = false;
+          button.dataset.side = onlineSide();
+          const shortcut = {
+            swordsman: ["1", "7"],
+            archer: ["2", "8"],
+            knight: ["3", "9"],
+            mage: ["5", "6"],
+            pistol: ["Q", "I"],
+            cannon: ["W", "O"],
+            spearman: ["E", "P"],
+            laser: ["R", "L"],
+            tower: ["4", "0"]
+          };
+          button.querySelector(".key").textContent = shortcut[button.dataset.unit][onlineRoom.player - 1];
+        });
+        document.getElementById("help").innerHTML = `<strong>Onlayn jang · xona ${onlineRoom.code}</strong><br>${onlineRoom.player}-o‘yinchi · ${onlineRoom.player === 1 ? "1–5, Q W E R" : "6–0, I O P L"}. Lazerchi uzoqdan lazer otadi.`;
+        onlineStatus.textContent = `${onlineRoom.name} · ${onlineRoom.code}`;
+        onlineStatus.style.display = "block";
+        roundLabel.textContent = "Onlayn jang!";
+        updateUI();
+      }
+      function applyOnlineSnapshot(data) {
+        if (!data?.game || !onlineRoom) return;
+        const previousUnits = lastOnlineSnapshot?.game?.units || [];
+        const currentUnitIds = new Set(data.game.units.map(unit => unit.id));
+        if (lastOnlineSnapshot) {
+          for (const unit of previousUnits) {
+            if (!currentUnitIds.has(unit.id) && unit.side !== onlineSide()) playSound("coin");
+          }
+        }
+        lastOnlineSnapshot = data;
+        const game = data.game;
+        state.gold = game.gold[0];
+        state.enemyGold = game.gold[1];
+        state.playerHp = game.hp[0];
+        state.enemyHp = game.hp[1];
+        state.chain = game.chain;
+        state.diamonds = game.diamonds;
+        state.damageBoosts = game.damageBoosts;
+        state.castleMaxHp = game.maxHp;
+        state.castleUpgrades = game.upgrades;
+        state.castleUpgradeLimits = game.upgradeLimits;
+        state.towers = game.towers;
+        state.towerCooldowns = game.towerCooldowns;
+        state.elapsed = game.elapsed;
+        state.units = game.units.map(unit => ({ ...unit, stats: settings[unit.type] }));
+        renderChatMessages(data.messages || []);
+        if (data.started) enterOnlineGame();
+        updateUI();
+        if (game.winner) {
+          finish(game.winner);
+          stopOnlinePolling();
+        }
+      }
+      async function pollOnlineRoom() {
+        if (!onlineRoom || polling) return;
+        polling = true;
+        try {
+          const data = await requestApi(`/api/rooms/${onlineRoom.code}?after=${lastChatId}`, {
+            headers: { "x-player-token": onlineRoom.token }
+          });
+          renderChatMessages(data.messages || []);
+          if (data.started) {
+            applyOnlineSnapshot(data);
+          } else {
+            roomStatus.textContent = `Xona kodi: ${onlineRoom.code}. Ikkinchi o‘yinchi qo‘shilishini kutyapmiz…`;
+          }
+        } catch (error) {
+          if (onlineRoom) {
+            roomStatus.textContent = `Ulanish uzildi: ${error.message} Qayta ulanmoqda…`;
+            roundLabel.textContent = "Server bilan aloqa uzildi";
+          }
+        } finally {
+          polling = false;
+          if (onlineRoom && state.running && state.mode === "online") {
+            onlinePollTimer = setTimeout(pollOnlineRoom, 300);
+          } else if (onlineRoom && mainMenu.classList.contains("hidden") === false) {
+            onlinePollTimer = setTimeout(pollOnlineRoom, 700);
+          }
+        }
+      }
+      function beginOnlineRoom(data) {
+        onlineRoom = { code: data.code, token: data.token, player: data.player, name: data.name };
+        state.mode = "online";
+        state.running = false;
+        lastChatId = 0;
+        renderedChatMessages = 0;
+        unreadChatCount = 0;
+        chatMessages.replaceChildren();
+        chatError.textContent = "";
+        roomChat.classList.remove("floating", "collapsed");
+        document.getElementById("online-panel").append(roomChat);
+        roomChat.classList.add("visible");
+        chatToggle.hidden = false;
+        setChatOpen(true);
+        roomCodeDisplay.textContent = data.code;
+        roomCodeDisplay.hidden = false;
+        copyRoomButton.hidden = false;
+        document.querySelector(".online-actions").hidden = true;
+        document.getElementById("player-name").disabled = true;
+        roomStatus.textContent = data.state.started
+          ? "Raqib ulandi. Jang boshlandi!"
+          : "Ikkinchi qurilmada shu saytni ochib, kodni kiriting.";
+        onlineStatus.textContent = `${data.name} · ${data.code}`;
+        onlineStatus.style.display = "block";
+        if (data.state.started) applyOnlineSnapshot(data.state);
+        stopOnlinePolling();
+        pollOnlineRoom();
+      }
+      async function createOnlineRoom() {
+        if (onlineRequestPending || onlineRoom) return;
+        const button = document.getElementById("create-room");
+        const code = document.getElementById("create-code").value.trim();
+        if (code && !/^\d{6}$/.test(code)) {
+          roomStatus.textContent = "Xona kodi bo‘sh qolsin yoki aynan 6 ta raqam kiriting.";
+          return;
+        }
+        onlineRequestPending = true;
+        button.disabled = true;
+        roomStatus.textContent = "Xona yaratilmoqda…";
+        try {
+          const name = getPlayerName();
+          const data = await requestApi("/api/rooms", {
+            method: "POST",
+            body: JSON.stringify({ action: "create", name, code: code || undefined })
+          });
+          document.getElementById("create-code").value = data.code;
+          beginOnlineRoom(data);
+        } catch (error) {
+          if (error instanceof TypeError) showOnlineError(error);
+          else roomStatus.textContent = error.message;
+        } finally {
+          onlineRequestPending = false;
+          button.disabled = false;
+        }
+      }
+      async function joinOnlineRoom() {
+        if (onlineRequestPending || onlineRoom) return;
+        const codeInput = document.getElementById("join-code");
+        const code = codeInput.value.trim();
+        const button = document.getElementById("join-room");
+        if (!/^\d{6}$/.test(code)) {
+          roomStatus.textContent = "Xona kodi 6 ta raqamdan iborat bo‘lishi kerak.";
+          return;
+        }
+        onlineRequestPending = true;
+        button.disabled = true;
+        roomStatus.textContent = "Xonaga ulanmoqda…";
+        try {
+          const name = getPlayerName();
+          const data = await requestApi("/api/rooms", {
+            method: "POST",
+            body: JSON.stringify({ action: "join", code, name })
+          });
+          beginOnlineRoom(data);
+        } catch (error) {
+          if (error instanceof TypeError) showOnlineError(error);
+          else roomStatus.textContent = error.message;
+        } finally {
+          onlineRequestPending = false;
+          button.disabled = false;
+        }
+      }
+      async function sendOnlineAction(type) {
+        if (!onlineRoom) return;
+        try {
+          const data = await requestApi(`/api/rooms/${onlineRoom.code}/action`, {
+            method: "POST",
+            headers: { "x-player-token": onlineRoom.token },
+            body: JSON.stringify({ type })
+          });
+          playSound("deploy");
+          applyOnlineSnapshot(data);
+          if (type.startsWith("shop-")) {
+            shopStatus.textContent = type === "shop-gold"
+              ? "1000 tanga olindi."
+              : type === "shop-heal"
+                ? "Qal’aga 500 jon qo‘shildi."
+                : "Askarlaringiz bu jangda ikki karra zarar yetkazadi.";
+          }
+        } catch (error) {
+          if (type.startsWith("shop-")) shopStatus.textContent = error.message;
+          else roundLabel.textContent = error.message;
+        }
+      }
+      function renderChatMessages(messages) {
+        for (const entry of messages) {
+          if (entry.id <= lastChatId) continue;
+          if (!chatOpen && entry.player !== onlineRoom?.player) unreadChatCount++;
+          const row = document.createElement("div");
+          row.className = "chat-message";
+          const sender = document.createElement("strong");
+          sender.textContent = `${entry.name || `O‘yinchi ${entry.player}`}: `;
+          const text = document.createElement("span");
+          text.textContent = entry.text;
+          row.append(sender, text);
+          chatMessages.append(row);
+          lastChatId = entry.id;
+          renderedChatMessages = Math.min(renderedChatMessages + 1, 100);
+          while (chatMessages.childElementCount > 100) chatMessages.firstElementChild.remove();
+        }
+        chatCount.textContent = `${renderedChatMessages}/100`;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        updateChatToggle();
+      }
+      function setChatOpen(open) {
+        chatOpen = open;
+        roomChat.classList.toggle("collapsed", !open);
+        if (open) {
+          unreadChatCount = 0;
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        updateChatToggle();
+      }
+      function updateChatToggle() {
+        chatToggle.textContent = chatOpen
+          ? "💬 Chatni yopish"
+          : `💬 Chat${unreadChatCount ? ` (${unreadChatCount})` : ""}`;
+        chatToggle.setAttribute("aria-expanded", String(chatOpen));
+      }
+      async function sendChatMessage(event) {
+        event.preventDefault();
+        if (!onlineRoom) return;
+        const input = document.getElementById("chat-input");
+        const text = input.value.trim();
+        if (!text) return;
+        const button = document.querySelector("#chat-form button");
+        button.disabled = true;
+        chatError.textContent = "";
+        try {
+          await requestApi(`/api/rooms/${onlineRoom.code}/chat`, {
+            method: "POST",
+            headers: { "x-player-token": onlineRoom.token },
+            body: JSON.stringify({ text })
+          });
+          input.value = "";
+          if (!polling) await pollOnlineRoom();
+        } catch (error) {
+          chatError.textContent = error.message;
+        } finally {
+          button.disabled = false;
+          input.focus();
+        }
+      }
+      function frame(time) {
+        const dt = Math.min((time - (state.last || time)) / 1000, .05);
+        state.last = time;
+        update(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+      unitButtons.forEach(button => button.addEventListener("click", () => hire(button.dataset.unit, button.dataset.side)));
+      castleActionButtons.forEach(button => button.addEventListener("click", () => {
+        if (button.dataset.castleAction === "upgrade") upgradeCastle(button.dataset.side);
+        else healCastle(button.dataset.side);
+      }));
+      document.getElementById("shop-button").addEventListener("click", () => {
+        shopStatus.textContent = "";
+        shopPanel.hidden = false;
+        updateUI();
+      });
+      document.getElementById("close-shop").addEventListener("click", () => { shopPanel.hidden = true; });
+      shopPanel.addEventListener("click", event => {
+        if (event.target === shopPanel) shopPanel.hidden = true;
+      });
+      shopSide.addEventListener("change", updateUI);
+      shopProductButtons.forEach(button => button.addEventListener("click", () =>
+        purchaseShopProduct(button.dataset.shopProduct)));
+      sceneCanvas.addEventListener("pointerdown", event => {
+        cameraDragging = true;
+        lastPointerX = event.clientX;
+        lastPointerY = event.clientY;
+        sceneCanvas.classList.add("dragging");
+        sceneCanvas.setPointerCapture(event.pointerId);
+      });
+      sceneCanvas.addEventListener("pointermove", event => {
+        if (!cameraDragging) return;
+        cameraYaw += (event.clientX - lastPointerX) * .008;
+        cameraElevation = clamp(cameraElevation + (event.clientY - lastPointerY) * .004, .18, 1.15);
+        lastPointerX = event.clientX;
+        lastPointerY = event.clientY;
+      });
+      const releaseCameraDrag = () => {
+        cameraDragging = false;
+        sceneCanvas.classList.remove("dragging");
+      };
+      sceneCanvas.addEventListener("pointerup", releaseCameraDrag);
+      sceneCanvas.addEventListener("pointercancel", releaseCameraDrag);
+      sceneCanvas.addEventListener("wheel", event => {
+        event.preventDefault();
+        cameraDistance = clamp(cameraDistance + event.deltaY * .6, 800, 8000);
+      }, { passive: false });
+      sceneCanvas.addEventListener("dblclick", () => {
+        cameraYaw = 0;
+        cameraElevation = .42;
+        cameraDistance = 4000;
+      });
+      window.addEventListener("keydown", event => {
+        if (event.repeat) return;
+        if (event.target instanceof HTMLElement && event.target.matches("input, textarea, [contenteditable='true']")) return;
+        const soloKeys = {
+          "1": ["swordsman", "player"], "2": ["archer", "player"], "3": ["knight", "player"], "4": ["tower", "player"],
+          "5": ["mage", "player"], "6": ["pistol", "player"], "7": ["cannon", "player"], "8": ["spearman", "player"], "9": ["laser", "player"]
+        };
+        const duelKeys = {
+          "1": ["swordsman", "player"], "2": ["archer", "player"], "3": ["knight", "player"], "4": ["tower", "player"],
+          "5": ["mage", "player"], "q": ["pistol", "player"], "w": ["cannon", "player"], "e": ["spearman", "player"], "r": ["laser", "player"],
+          "6": ["mage", "enemy"], "7": ["swordsman", "enemy"], "8": ["archer", "enemy"], "9": ["knight", "enemy"],
+          "0": ["tower", "enemy"], "i": ["pistol", "enemy"], "o": ["cannon", "enemy"], "p": ["spearman", "enemy"], "l": ["laser", "enemy"]
+        };
+        const onlineKeys = onlineRoom?.player === 2
+          ? {
+            "6": ["mage", "enemy"], "7": ["swordsman", "enemy"], "8": ["archer", "enemy"], "9": ["knight", "enemy"],
+            "0": ["tower", "enemy"], "i": ["pistol", "enemy"], "o": ["cannon", "enemy"], "p": ["spearman", "enemy"], "l": ["laser", "enemy"]
+          }
+          : {
+            "1": ["swordsman", "player"], "2": ["archer", "player"], "3": ["knight", "player"], "4": ["tower", "player"],
+            "5": ["mage", "player"], "q": ["pistol", "player"], "w": ["cannon", "player"], "e": ["spearman", "player"], "r": ["laser", "player"]
+          };
+        const keyboardUnits = state.mode === "solo" ? soloKeys : state.mode === "online" ? onlineKeys : duelKeys;
+        const action = keyboardUnits[event.key.toLowerCase()];
+        if (action) hire(...action);
+      });
+      document.querySelectorAll(".menu-option[data-mode]").forEach(button =>
+        button.addEventListener("click", () => startGame(button.dataset.mode)));
+      document.getElementById("show-online").addEventListener("click", () => {
+        onlinePanel.hidden = false;
+        document.querySelector(".online-actions").hidden = false;
+        document.getElementById("player-name").disabled = false;
+        roomCodeDisplay.hidden = true;
+        copyRoomButton.hidden = true;
+        roomStatus.textContent = "O‘yin serverdan ochilishi kerak. Ikkinchi qurilmada localhost emas, serverning umumiy manzilini oching.";
+      });
+      document.getElementById("create-room").addEventListener("click", createOnlineRoom);
+      document.getElementById("join-room").addEventListener("click", joinOnlineRoom);
+      document.getElementById("join-code").addEventListener("input", event => {
+        event.target.value = event.target.value.replace(/\D/g, "").slice(0, 6);
+      });
+      document.getElementById("create-code").addEventListener("input", event => {
+        event.target.value = event.target.value.replace(/\D/g, "").slice(0, 6);
+      });
+      document.getElementById("copy-room").addEventListener("click", async () => {
+        if (!onlineRoom) return;
+        const inviteUrl = new URL(location.href);
+        inviteUrl.searchParams.set("room", onlineRoom.code);
+        try {
+          await navigator.clipboard.writeText(inviteUrl.href);
+          roomStatus.textContent = "Taklif havolasi nusxalandi. Uni ikkinchi o‘yinchiga yuboring.";
+        } catch {
+          roomStatus.textContent = `Xona kodi: ${onlineRoom.code}. Havolani nusxalash uchun brauzerdan foydalaning.`;
+        }
+      });
+      document.getElementById("chat-form").addEventListener("submit", sendChatMessage);
+      chatToggle.addEventListener("click", () => setChatOpen(!chatOpen));
+      document.getElementById("home-button").addEventListener("click", showMainMenu);
+      document.getElementById("restart").addEventListener("click", () => {
+        if (state.mode === "online") showMainMenu();
+        else startGame(state.mode || "solo", true);
+      });
+      window.addEventListener("resize", resize);
+      try {
+        initialize3d();
+      } catch (error) {
+        console.error("3D sahnani ishga tushirib bo‘lmadi:", error);
+        roundLabel.textContent = error.message;
+      }
+      const inviteCode = new URLSearchParams(location.search).get("room");
+      if (/^\d{6}$/.test(inviteCode || "")) {
+        onlinePanel.hidden = false;
+        document.getElementById("join-code").value = inviteCode;
+        roomStatus.textContent = "Sizga onlayn jangga taklif yuborildi. Ismingizni kiriting va qo‘shiling.";
+      }
+      resize();
+      updateUI();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
