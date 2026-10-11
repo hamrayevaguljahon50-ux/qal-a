@@ -272,6 +272,9 @@
       .chat-toggle { top: 5px; right: 5px; }
       .room-chat.floating { bottom: 105px; }
     }
+     .jon{
+    justify-content:space-between;
+  }
   </style>
 </head>
 <body>
@@ -308,6 +311,7 @@
   </section>
   <button class="menu-button chat-toggle" id="chat-toggle" type="button" hidden>💬 Chat</button>
   <section class="health-panel" aria-label="Qal'alar salomatligi">
+    <div class="jon">
     <div class="health-row"><span id="player-castle-label">🛡️ Sening qal'ang</span><b id="player-hp-text">1000</b></div>
     <div class="bar"><div id="player-health" class="fill" style="width:100%"></div></div>
     <div class="castle-action-row" data-castle-actions="player">
@@ -321,6 +325,7 @@
       <button class="castle-action" data-castle-action="heal" data-side="enemy" title="Qal'aga 200 jon qo‘shish">❤️ +200 · 40🪙</button>
     </div>
   </section>
+    </div>
   <section class="duel-controls" id="duel-controls" aria-label="Ikki o‘yinchi askar boshqaruvi">
     <nav class="duel-team" aria-label="1-o‘yinchi">
       <h2>1-O‘YINCHI · 1–5, Q W E R</h2>
